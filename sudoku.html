@@ -1,0 +1,1226 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="数独">
+<meta name="theme-color" content="#12161d">
+<title>数独</title>
+<style>
+:root{
+  --bg:#f4f1ea; --panel:#fffdf8; --line:#c9c2b4; --line-strong:#3d3a34;
+  --fg:#2b2823; --given:#2b2823; --user:#2f6fd0; --note:#8c877c;
+  --sel:#d9e6f8; --peer:#eae6dc; --same:#cfe0f6; --err:#d8443c; --errbg:#f7dedc;
+  --btn:#ffffff; --btn-b:#cfc8ba; --accent:#2f6fd0; --muted:#7d776c;
+  --cage:#8a7d63; --cagetxt:#6b5f47;
+  --shadow:0 2px 10px rgba(0,0,0,.10);
+}
+@media (prefers-color-scheme: dark){
+:root{
+  --bg:#12161d; --panel:#1a2029; --line:#39414d; --line-strong:#8d98a8;
+  --fg:#e6e9ee; --given:#e6e9ee; --user:#6fa8ff; --note:#7b8493;
+  --sel:#2c3a51; --peer:#212934; --same:#31445f; --err:#ff6b6b; --errbg:#40222a;
+  --btn:#222a35; --btn-b:#39414d; --accent:#6fa8ff; --muted:#8d98a8;
+  --cage:#6d7889; --cagetxt:#98a3b5;
+  --shadow:0 2px 12px rgba(0,0,0,.4);
+}
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;height:100%;overscroll-behavior:none;}
+body{
+  background:var(--bg); color:var(--fg);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",system-ui,sans-serif;
+  display:flex; flex-direction:column; align-items:center;
+  padding:env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+  user-select:none; -webkit-user-select:none; touch-action:manipulation;
+}
+button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointer;}
+
+/* ---- layout ---- */
+#app{--bs:min(94vw, 58vh); display:flex; flex-direction:column; align-items:center;
+     gap:calc(var(--bs)*.028); width:100%; height:100%; justify-content:center; padding:8px;}
+#left,#right{display:flex;flex-direction:column;align-items:center;gap:calc(var(--bs)*.028);}
+@media (orientation:portrait){ #left,#right{width:var(--bs);} }
+@media (orientation:landscape){
+  #app{--bs:min(58vw, 86vh); flex-direction:row; gap:calc(var(--bs)*.05); align-items:center;}
+  #right{width:min(34vw,340px); gap:calc(var(--bs)*.04);}
+}
+
+/* ---- top bar ---- */
+#bar{display:flex;align-items:center;justify-content:space-between;width:var(--bs);gap:8px;
+     font-size:clamp(13px,calc(var(--bs)*.042),20px);}
+#bar .stat{display:flex;gap:.9em;align-items:baseline;color:var(--muted);font-variant-numeric:tabular-nums;}
+#bar .stat b{color:var(--fg);font-weight:600;}
+#newBtn{background:var(--btn);border:1px solid var(--btn-b);border-radius:10px;
+        padding:.42em .9em;font-size:1em;font-weight:600;box-shadow:var(--shadow);}
+#newBtn:active{transform:translateY(1px);}
+
+/* ---- board ---- */
+#board{
+  position:relative;
+  width:var(--bs); height:var(--bs); display:grid;
+  grid-template-columns:repeat(9,1fr); grid-template-rows:repeat(9,1fr);
+  background:var(--panel); border:3px solid var(--line-strong); border-radius:6px;
+  box-shadow:var(--shadow); overflow:hidden;
+}
+/* キラー数独風ケージ（地獄モードのヒント）。盤面と同じ正方形に重ねるので
+   viewBox 座標のまま書けば自動で拡大縮小される。クリックは透過。 */
+#cages{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;}
+#cages line{stroke:var(--cage);stroke-width:.38;stroke-dasharray:1.8 1.5;stroke-linecap:round;}
+#cages text{fill:var(--cagetxt);font-size:2.7px;font-weight:700;
+            font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;}
+.cell{
+  position:relative; display:flex; align-items:center; justify-content:center;
+  border-right:1px solid var(--line); border-bottom:1px solid var(--line);
+  font-size:calc(var(--bs)/9*.62); line-height:1; font-weight:400;
+  background:var(--panel); transition:background-color .08s;
+}
+.cell:nth-child(9n){border-right:none;}
+.cell:nth-child(n+73){border-bottom:none;}
+.cell.br{border-right:3px solid var(--line-strong);}
+.cell.bb{border-bottom:3px solid var(--line-strong);}
+.cell.peer{background:var(--peer);}
+.cell.same{background:var(--same);}
+.cell.sel{background:var(--sel);}
+.cell.given{color:var(--given);font-weight:700;}
+.cell.user{color:var(--user);font-weight:600;}
+.cell.err{color:var(--err)!important;background:var(--errbg);}
+.cell .notes{
+  position:absolute;inset:6%;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
+  font-size:calc(var(--bs)/9*.235);color:var(--note);font-weight:600;line-height:1;
+}
+.cell .notes span{display:flex;align-items:center;justify-content:center;}
+/* 合計値が載るマスは、メモを合計値の下に追い出す（重なり防止） */
+.cell.hassum .notes{inset:44% 5% 4% 5%;font-size:calc(var(--bs)/9*.165);}
+
+/* ---- number pad ---- */
+#pad{display:grid;grid-template-columns:repeat(9,1fr);gap:calc(var(--bs)*.014);width:var(--bs);}
+.num{
+  aspect-ratio:1/1; background:var(--btn); border:1px solid var(--btn-b); border-radius:10px;
+  font-size:calc(var(--bs)/9*.56); font-weight:600; display:flex;align-items:center;justify-content:center;
+  box-shadow:var(--shadow); padding:0;
+}
+.num:active{background:var(--sel);}
+.num.done{opacity:.3;}
+@media (orientation:landscape){
+  #pad{grid-template-columns:repeat(3,1fr);gap:8px;width:100%;}
+  .num{aspect-ratio:auto; height:clamp(46px,9vh,76px); font-size:clamp(22px,4.4vh,40px);}
+}
+
+#tools{display:grid;grid-template-columns:repeat(3,1fr);gap:calc(var(--bs)*.02);width:var(--bs);}
+.tool{
+  background:var(--btn);border:1px solid var(--btn-b);border-radius:12px;box-shadow:var(--shadow);
+  padding:.62em 0; font-size:clamp(13px,calc(var(--bs)*.045),19px); font-weight:600;
+  display:flex;align-items:center;justify-content:center;gap:.35em;
+}
+.tool:active{transform:translateY(1px);}
+.tool.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+.tool .tag{font-size:.72em;font-weight:700;opacity:.8;}
+@media (orientation:landscape){ #tools{width:100%;gap:8px;} }
+
+/* ---- overlays ---- */
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.55);backdrop-filter:blur(3px);
+    display:none;align-items:center;justify-content:center;z-index:20;padding:20px;}
+.ov.show{display:flex;}
+.card{background:var(--panel);border-radius:18px;padding:26px 24px;max-width:380px;width:100%;
+      box-shadow:0 12px 40px rgba(0,0,0,.4);text-align:center;
+      max-height:100%;overflow-y:auto;-webkit-overflow-scrolling:touch;}
+.card h2{margin:0 0 4px;font-size:22px;}
+.card p{margin:6px 0 18px;color:var(--muted);font-size:15px;line-height:1.6;}
+.card .big{font-size:34px;font-weight:700;color:var(--fg);font-variant-numeric:tabular-nums;margin:10px 0 4px;}
+.dbtn{display:block;width:100%;background:var(--btn);border:1px solid var(--btn-b);border-radius:12px;
+      padding:14px;margin-top:9px;font-size:17px;font-weight:600;}
+.dbtn:active{transform:translateY(1px);}
+.dbtn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
+.dbtn small{display:block;font-weight:400;font-size:12px;opacity:.7;margin-top:3px;}
+#gameTabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:14px 0 4px;}
+.gtab{background:var(--btn);border:1px solid var(--btn-b);border-radius:11px;
+      padding:11px 0;font-size:16px;font-weight:600;}
+.gtab.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+#spin{font-size:16px;color:#fff;text-align:center;}
+
+/* ---- クリア演出 ---- */
+#fx{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;display:block;}
+/* 花火が見えるよう、暗幕は少し遅れてから降ろす */
+#ovWin{background:rgba(0,0,0,0);backdrop-filter:none;transition:background-color .8s ease;}
+#ovWin.lit{background:rgba(0,0,0,.55);backdrop-filter:blur(3px);}
+#ovWin .card{position:relative;}
+#ovWin.fxon .card{animation:cardIn .55s cubic-bezier(.2,1.5,.4,1) .85s both;}
+@keyframes cardIn{
+  from{opacity:0;transform:translateY(28px) scale(.86);}
+  to{opacity:1;transform:none;}
+}
+/* 盤面を左上から順に弾ませる */
+@keyframes cellPop{
+  0%{transform:scale(1);}
+  40%{transform:scale(1.17);}
+  100%{transform:scale(1);}
+}
+@keyframes boardGlow{
+  0%{box-shadow:var(--shadow);}
+  30%{box-shadow:0 0 0 4px rgba(255,196,64,.85), 0 0 34px 10px rgba(255,196,64,.5);}
+  100%{box-shadow:var(--shadow);}
+}
+#board.win{animation:boardGlow 1.5s ease-out .35s both;}
+@media (prefers-reduced-motion: reduce){
+  #ovWin.fxon .card{animation:none;}
+  #board.win{animation:none;}
+}
+</style>
+</head>
+<body>
+<div id="app">
+  <div id="left">
+    <div id="bar">
+      <div class="stat"><span id="diffLbl">ふつう</span></div>
+      <div class="stat"><span>ミス <b id="missLbl">0</b></span></div>
+      <button id="newBtn">新規</button>
+    </div>
+    <div id="board"></div>
+  </div>
+  <div id="right">
+    <div id="pad"></div>
+    <div id="tools">
+      <button class="tool" id="memoBtn">メモ <span class="tag">OFF</span></button>
+      <button class="tool" id="eraseBtn">消去</button>
+      <button class="tool" id="undoBtn">取り消し</button>
+    </div>
+  </div>
+</div>
+
+<div class="ov" id="ovNew"><div class="card">
+  <h2>ゲームを選ぶ</h2>
+  <div id="gameTabs">
+    <button class="gtab on" data-g="n">数独</button>
+    <button class="gtab" data-g="k">キラー</button>
+  </div>
+  <p id="gameDesc"></p>
+  <div id="diffList"></div>
+  <button class="dbtn" id="cancelNew">もどる</button>
+</div></div>
+
+<div class="ov" id="ovWin"><div class="card">
+  <h2>クリア！</h2>
+  <div class="big" id="winDiff">ふつう</div>
+  <p id="winSub">ミス 0</p>
+  <button class="dbtn primary" id="againBtn">もう一局</button>
+</div></div>
+
+<div class="ov" id="ovGen"><div id="spin"><span id="genLbl">盤面を厳選中…</span></div></div>
+
+<script>
+'use strict';
+/* c=目標ヒント数 / lo..hi=要求する手筋レベル（humanSolve の判定値） */
+var DIFF=[
+  {n:'やさしい',   c:45, lo:1, hi:1, d:'単数決めだけで解ける'},
+  {n:'ふつう',     c:34, lo:1, hi:1, d:'手筋は基本のみ・ヒント34'},
+  {n:'むずかしい', c:30, lo:2, hi:2, d:'中級技（同盟・偏り）が必要'},
+  {n:'鬼',        c:27, lo:3, hi:3, d:'上級技（X-Wing / XY-Wing）が必要'},
+  {n:'地獄',      c:24, lo:4, hi:4, cage:true, d:'読み切り勝負・ケージのヒント付き'}
+];
+/* キラーナンプレ：ヒント数字が無いぶん、難易度はケージの大きさと個数で決まる。
+   maxS=1ケージの最大マス数 / merges=併合を試みる回数の上限 */
+var KDIFF=[
+  {n:'やさしい',   maxS:3, merges:10, d:'2〜3マスの小さなケージ中心'},
+  {n:'ふつう',     maxS:4, merges:25, d:'最大4マス'},
+  {n:'むずかしい', maxS:5, merges:45, d:'最大5マス・ケージが少なめ'},
+  {n:'鬼',        maxS:6, merges:60, d:'最大6マス・ケージ数が最少'}
+];
+var GEN_BUDGET=6000;   /* 条件に合う盤面を探す上限時間(ms) */
+var KEY='sudoku.save.v1';
+function curDiffList(){ return S&&S.game==='k' ? KDIFF : DIFF; }
+
+/* ===== 生成 ===== */
+function shuffle(a){for(var i=a.length-1;i>0;i--){var j=(Math.random()*(i+1))|0,t=a[i];a[i]=a[j];a[j]=t;}return a;}
+function boxOf(i){return (((i/9)|0)/3|0)*3+(((i%9)/3)|0);}
+function idx81(){var a=[];for(var i=0;i<81;i++)a.push(i);return a;}
+
+function generateFull(){
+  var g=new Array(81).fill(0),rows=new Array(9).fill(0),cols=new Array(9).fill(0),bx=new Array(9).fill(0);
+  (function rec(k){
+    if(k===81) return true;
+    var r=(k/9)|0,c=k%9,b=boxOf(k),used=rows[r]|cols[c]|bx[b];
+    var cand=shuffle([1,2,3,4,5,6,7,8,9].filter(function(v){return !(used&(1<<v));}));
+    for(var t=0;t<cand.length;t++){
+      var v=cand[t],m=1<<v;
+      g[k]=v; rows[r]|=m; cols[c]|=m; bx[b]|=m;
+      if(rec(k+1)) return true;
+      g[k]=0; rows[r]&=~m; cols[c]&=~m; bx[b]&=~m;
+    }
+    return false;
+  })(0);
+  return g;
+}
+
+/* 解の個数（limit で打ち切り）。1 なら一意解 */
+function countSolutions(g,limit){
+  var rows=new Array(9).fill(0),cols=new Array(9).fill(0),bx=new Array(9).fill(0),i,v,m;
+  for(i=0;i<81;i++){v=g[i]; if(v){m=1<<v; rows[(i/9)|0]|=m; cols[i%9]|=m; bx[boxOf(i)]|=m;}}
+  var empties=[]; for(i=0;i<81;i++) if(!g[i]) empties.push(i);
+  var count=0;
+  (function rec(){
+    var best=-1,bestUsed=0,bestCnt=10,k,used,cnt,v2;
+    for(k=0;k<empties.length;k++){
+      var e=empties[k];
+      if(g[e]) continue;
+      used=rows[(e/9)|0]|cols[e%9]|bx[boxOf(e)];
+      cnt=0; for(v2=1;v2<=9;v2++) if(!(used&(1<<v2))) cnt++;
+      if(cnt<bestCnt){bestCnt=cnt;best=e;bestUsed=used; if(!cnt) break;}
+    }
+    if(best===-1){count++;return;}
+    if(!bestCnt) return;
+    var r=(best/9)|0,c=best%9,b=boxOf(best);
+    for(v2=1;v2<=9;v2++){
+      var mm=1<<v2; if(bestUsed&mm) continue;
+      g[best]=v2; rows[r]|=mm; cols[c]|=mm; bx[b]|=mm;
+      rec();
+      g[best]=0; rows[r]&=~mm; cols[c]&=~mm; bx[b]&=~mm;
+      if(count>=limit) return;
+    }
+  })();
+  return count;
+}
+
+/* 一意解を保ったままマスを消す（点対称パス → 自由パス） */
+function makePuzzle(sol,target){
+  var g=sol.slice(),clues=81,order=shuffle(idx81()),k,i,j,a,b,removed;
+  for(k=0;k<order.length;k++){
+    if(clues<=target) break;
+    i=order[k]; if(!g[i]) continue;
+    j=80-i; a=g[i]; b=g[j]; removed=(j===i||!b)?1:2;
+    g[i]=0; g[j]=0;
+    if(countSolutions(g.slice(),2)===1) clues-=removed; else {g[i]=a; g[j]=b;}
+  }
+  if(clues>target){
+    order=shuffle(idx81());
+    for(k=0;k<order.length;k++){
+      if(clues<=target) break;
+      i=order[k]; if(!g[i]) continue;
+      a=g[i]; g[i]=0;
+      if(countSolutions(g.slice(),2)===1) clues--; else g[i]=a;
+    }
+  }
+  return g;
+}
+
+/* ===== 難易度格付け：人間の手筋をなぞるソルバー =====
+   Lv1 基本   : 裸の単数・隠れた単数
+   Lv2 中級   : ブロック内偏り(pointing/claiming)・裸の二国/三国同盟・隠れた二国同盟
+   Lv3 上級   : X-Wing(井桁)・XY-Wing
+   Lv4 読み切り: 上記すべてで詰む（連鎖読み・仮置きが必要）           */
+var PMAT=new Uint8Array(81*81);
+(function(){
+  for(var i=0;i<81;i++) for(var j=0;j<81;j++)
+    if(i!==j && ((((i/9)|0)===((j/9)|0)) || (i%9===j%9) || boxOf(i)===boxOf(j))) PMAT[i*81+j]=1;
+})();
+var PEERS=(function(){
+  var p=[],i,j,a;
+  for(i=0;i<81;i++){ a=[]; for(j=0;j<81;j++) if(PMAT[i*81+j]) a.push(j); p.push(a); }
+  return p;
+})();
+function bc(x){var n=0;while(x){x&=x-1;n++;}return n;}
+function lowDigit(x){for(var v=1;v<=9;v++) if(x&(1<<v)) return v;return 0;}
+var COMB={};
+function combos(n,k){
+  var key=n+'_'+k; if(COMB[key]) return COMB[key];
+  var res=[],cur=[];
+  (function rec(s){
+    if(cur.length===k){res.push(cur.slice());return;}
+    for(var i=s;i<n;i++){cur.push(i);rec(i+1);cur.pop();}
+  })(0);
+  COMB[key]=res; return res;
+}
+
+function humanSolve(puzzle){
+  var ALL=0x3FE, val=puzzle.slice(), cand=new Array(81).fill(0), i, k, maxLv=0;
+  for(i=0;i<81;i++) cand[i]= val[i]?0:ALL;
+  for(i=0;i<81;i++) if(val[i]){ var ps=PEERS[i]; for(k=0;k<ps.length;k++) cand[ps[k]] &= ~(1<<val[i]); }
+
+  function assign(i,v){ val[i]=v; cand[i]=0; var ps=PEERS[i],t; for(t=0;t<ps.length;t++) cand[ps[t]] &= ~(1<<v); }
+  function consistent(){ for(var i=0;i<81;i++) if(!val[i] && !cand[i]) return false; return true; }
+  function filled(){ for(var i=0;i<81;i++) if(!val[i]) return false; return true; }
+
+  /* Lv1: 裸の単数 */
+  function nakedSingle(){
+    var ch=false,i;
+    for(i=0;i<81;i++) if(!val[i] && bc(cand[i])===1){ assign(i,lowDigit(cand[i])); ch=true; }
+    return ch;
+  }
+  /* Lv1: 隠れた単数（ある数字がユニット内で1マスにしか入らない） */
+  function hiddenSingle(){
+    var ch=false,g,u,v,m,k,i,cnt,at,taken;
+    for(g=0;g<27;g++){
+      u=GROUPS[g];
+      for(v=1;v<=9;v++){
+        m=1<<v; cnt=0; at=-1; taken=false;
+        for(k=0;k<9;k++){ i=u[k]; if(val[i]===v){taken=true;break;} if(cand[i]&m){cnt++;at=i;} }
+        if(!taken && cnt===1){ assign(at,v); ch=true; }
+      }
+    }
+    return ch;
+  }
+  /* Lv2: 井桁の前段（ブロック内で行/列に偏る＝pointing / claiming） */
+  function locked(){
+    var ch=false,g,u,v,m,k,i,cells,r0,c0,sameR,sameC,tgt;
+    for(g=18;g<27;g++){                       /* ブロック → 行・列 */
+      u=GROUPS[g];
+      for(v=1;v<=9;v++){
+        m=1<<v; cells=[];
+        for(k=0;k<9;k++){ i=u[k]; if(val[i]===v){cells=null;break;} if(cand[i]&m) cells.push(i); }
+        if(!cells||cells.length<2) continue;
+        r0=(cells[0]/9)|0; c0=cells[0]%9; sameR=true; sameC=true;
+        for(k=1;k<cells.length;k++){ if(((cells[k]/9)|0)!==r0) sameR=false; if(cells[k]%9!==c0) sameC=false; }
+        if(sameR) for(k=0;k<9;k++){ tgt=r0*9+k; if(boxOf(tgt)!==boxOf(cells[0]) && (cand[tgt]&m)){ cand[tgt]&=~m; ch=true; } }
+        if(sameC) for(k=0;k<9;k++){ tgt=k*9+c0;  if(boxOf(tgt)!==boxOf(cells[0]) && (cand[tgt]&m)){ cand[tgt]&=~m; ch=true; } }
+      }
+    }
+    for(g=0;g<18;g++){                        /* 行・列 → ブロック */
+      u=GROUPS[g];
+      for(v=1;v<=9;v++){
+        m=1<<v; cells=[];
+        for(k=0;k<9;k++){ i=u[k]; if(val[i]===v){cells=null;break;} if(cand[i]&m) cells.push(i); }
+        if(!cells||cells.length<2) continue;
+        var b0=boxOf(cells[0]), same=true;
+        for(k=1;k<cells.length;k++) if(boxOf(cells[k])!==b0) same=false;
+        if(same){ var bu=GROUPS[18+b0]; for(k=0;k<9;k++){ tgt=bu[k]; if(cells.indexOf(tgt)<0 && (cand[tgt]&m)){ cand[tgt]&=~m; ch=true; } } }
+      }
+    }
+    return ch;
+  }
+  /* Lv2: 裸の二国/三国同盟 */
+  function nakedSubset(){
+    var ch=false,g,u,k,i,sz,open,cb,ci,idx,un,t;
+    for(g=0;g<27;g++){
+      u=GROUPS[g]; open=[];
+      for(k=0;k<9;k++){ i=u[k]; if(!val[i]) open.push(i); }
+      for(sz=2;sz<=3;sz++){
+        if(open.length<=sz) continue;
+        cb=combos(open.length,sz);
+        for(ci=0;ci<cb.length;ci++){
+          idx=cb[ci]; un=0;
+          for(t=0;t<sz;t++) un|=cand[open[idx[t]]];
+          if(bc(un)!==sz) continue;
+          for(k=0;k<open.length;k++){
+            if(idx.indexOf(k)>=0) continue;
+            if(cand[open[k]]&un){ cand[open[k]]&=~un; ch=true; }
+          }
+        }
+      }
+    }
+    return ch;
+  }
+  /* Lv2: 隠れた二国同盟 */
+  function hiddenPair(){
+    var ch=false,g,u,v,m,k,i,pos,list,a,b,p1,p2,keep,t;
+    for(g=0;g<27;g++){
+      u=GROUPS[g]; pos={}; list=[];
+      for(v=1;v<=9;v++){
+        m=1<<v; var ps=[], taken=false;
+        for(k=0;k<9;k++){ i=u[k]; if(val[i]===v){taken=true;break;} if(cand[i]&m) ps.push(i); }
+        if(!taken && ps.length===2){ pos[v]=ps; list.push(v); }
+      }
+      for(a=0;a<list.length;a++) for(b=a+1;b<list.length;b++){
+        p1=pos[list[a]]; p2=pos[list[b]];
+        if(p1[0]!==p2[0]||p1[1]!==p2[1]) continue;
+        keep=(1<<list[a])|(1<<list[b]);
+        for(t=0;t<2;t++) if(cand[p1[t]] & ~keep){ cand[p1[t]] &= keep; ch=true; }
+      }
+    }
+    return ch;
+  }
+  /* Lv3: X-Wing（井桁） */
+  function xWing(){
+    var ch=false,v,m,r,c,i,ps,rp,cp,a,b,x,t,tgt;
+    for(v=1;v<=9;v++){
+      m=1<<v; rp=[]; cp=[];
+      for(r=0;r<9;r++){
+        ps=[]; for(c=0;c<9;c++){ i=r*9+c; if(val[i]===v){ps=null;break;} if(cand[i]&m) ps.push(c); }
+        rp.push((ps&&ps.length===2)?ps:null);
+      }
+      for(a=0;a<9;a++) for(b=a+1;b<9;b++){
+        if(!rp[a]||!rp[b]||rp[a][0]!==rp[b][0]||rp[a][1]!==rp[b][1]) continue;
+        for(x=0;x<9;x++){ if(x===a||x===b) continue;
+          for(t=0;t<2;t++){ tgt=x*9+rp[a][t]; if(cand[tgt]&m){ cand[tgt]&=~m; ch=true; } } }
+      }
+      for(c=0;c<9;c++){
+        ps=[]; for(r=0;r<9;r++){ i=r*9+c; if(val[i]===v){ps=null;break;} if(cand[i]&m) ps.push(r); }
+        cp.push((ps&&ps.length===2)?ps:null);
+      }
+      for(a=0;a<9;a++) for(b=a+1;b<9;b++){
+        if(!cp[a]||!cp[b]||cp[a][0]!==cp[b][0]||cp[a][1]!==cp[b][1]) continue;
+        for(x=0;x<9;x++){ if(x===a||x===b) continue;
+          for(t=0;t<2;t++){ tgt=cp[a][t]*9+x; if(cand[tgt]&m){ cand[tgt]&=~m; ch=true; } } }
+      }
+    }
+    return ch;
+  }
+  /* Lv3: XY-Wing */
+  function xyWing(){
+    var ch=false,bi=[],i,a,b,c,p,w1,w2,s1,s2,z,k;
+    for(i=0;i<81;i++) if(!val[i] && bc(cand[i])===2) bi.push(i);
+    for(a=0;a<bi.length;a++){
+      p=bi[a];
+      for(b=0;b<bi.length;b++){
+        if(b===a) continue;
+        w1=bi[b]; if(!PMAT[p*81+w1]) continue;
+        s1=cand[p]&cand[w1]; if(bc(s1)!==1) continue;
+        for(c=b+1;c<bi.length;c++){
+          if(c===a) continue;
+          w2=bi[c]; if(!PMAT[p*81+w2]) continue;
+          s2=cand[p]&cand[w2]; if(bc(s2)!==1||s1===s2||(s1|s2)!==cand[p]) continue;
+          z=cand[w1]&cand[w2]; if(bc(z)!==1||(z&cand[p])) continue;
+          for(k=0;k<81;k++){
+            if(k===p||k===w1||k===w2) continue;
+            if(PMAT[w1*81+k] && PMAT[w2*81+k] && (cand[k]&z)){ cand[k]&=~z; ch=true; }
+          }
+        }
+      }
+    }
+    return ch;
+  }
+
+  var TECHS=[[nakedSingle,1],[hiddenSingle,1],[locked,2],[nakedSubset,2],[hiddenPair,2],[xWing,3],[xyWing,3]];
+  for(;;){
+    if(!consistent()) return {solved:false, lv:9, val:val};
+    if(filled()) return {solved:true, lv:maxLv||1, val:val};
+    var moved=false;
+    for(k=0;k<TECHS.length;k++){
+      if(TECHS[k][0]()){ if(TECHS[k][1]>maxLv) maxLv=TECHS[k][1]; moved=true; break; }
+    }
+    if(!moved) return {solved:false, lv:4, val:val};   /* 手筋が尽きた＝読み切りが必要 */
+  }
+}
+
+/* ===== キラー数独風ケージ（地獄モードのヒント） =====
+   空きマスだけを点線で囲み、左上に中身の合計を出す。
+   キラーの規則にならい 1ケージ内に同じ数字は入れない（合計のヒント価値が上がる）。*/
+var CAGE_RATIO=0.5;          /* 空きマスのうちケージで覆う割合 */
+var CAGE_MIN=2, CAGE_MAX=4;  /* 1ケージのマス数。1マスだと答えそのものなので2以上 */
+
+function neighbors4(i){
+  var r=(i/9)|0, c=i%9, a=[];
+  if(r>0) a.push(i-9); if(r<8) a.push(i+9);
+  if(c>0) a.push(i-1); if(c<8) a.push(i+1);
+  return a;
+}
+function buildCages(given,sol){
+  var empty=[],i;
+  for(i=0;i<81;i++) if(!given[i]) empty.push(i);
+  var target=Math.round(empty.length*CAGE_RATIO), used={}, cages=[], covered=0;
+  var seeds=shuffle(empty.slice()), s,k,t,j,size,cage,digits,opts,pick,sum;
+  for(s=0;s<seeds.length && covered<target;s++){
+    if(used[seeds[s]]) continue;
+    size=CAGE_MIN+((Math.random()*(CAGE_MAX-CAGE_MIN+1))|0);
+    cage=[seeds[s]]; digits={}; digits[sol[seeds[s]]]=1; used[seeds[s]]=1;
+    while(cage.length<size){
+      opts=[];
+      for(k=0;k<cage.length;k++){
+        var nb=neighbors4(cage[k]);
+        for(t=0;t<nb.length;t++){
+          j=nb[t];
+          if(used[j]||given[j]||digits[sol[j]]) continue;
+          if(opts.indexOf(j)<0) opts.push(j);
+        }
+      }
+      if(!opts.length) break;
+      pick=opts[(Math.random()*opts.length)|0];
+      used[pick]=1; digits[sol[pick]]=1; cage.push(pick);
+    }
+    if(cage.length<CAGE_MIN){ used[seeds[s]]=0; continue; }
+    cage.sort(function(a,b){return a-b;});
+    sum=0; for(k=0;k<cage.length;k++) sum+=sol[cage[k]];
+    cages.push({c:cage,s:sum}); covered+=cage.length;
+  }
+  return cages;
+}
+
+/* ===== キラーナンプレ =====
+   ヒント数字は一切なし。手がかりはケージの合計値だけ。
+   盤面81マスすべてをケージに分割し、合計制約つきソルバーで解が1通りか検証する。 */
+
+/* 大きさ minS..maxS のケージで盤面を埋め尽くす（同一ケージに同じ数字は入れない） */
+function partitionCages(sol,minS,maxS){
+  var order=shuffle(idx81()), used={}, cages=[], s,k,t,j,seed,cage,digits,opts,pick,size;
+  for(s=0;s<order.length;s++){
+    seed=order[s];
+    if(used[seed]) continue;
+    size=minS+((Math.random()*(maxS-minS+1))|0);
+    cage=[seed]; digits={}; digits[sol[seed]]=1; used[seed]=1;
+    while(cage.length<size){
+      opts=[];
+      for(k=0;k<cage.length;k++){
+        var nb=neighbors4(cage[k]);
+        for(t=0;t<nb.length;t++){
+          j=nb[t];
+          if(used[j]||digits[sol[j]]) continue;
+          if(opts.indexOf(j)<0) opts.push(j);
+        }
+      }
+      if(!opts.length) break;
+      pick=opts[(Math.random()*opts.length)|0];
+      used[pick]=1; digits[sol[pick]]=1; cage.push(pick);
+    }
+    cage.sort(function(a,b){return a-b;});
+    cages.push(cage);
+  }
+  return cages;
+}
+/* 1マスだけのケージは合計＝答えそのものなので、可能なら隣のケージに吸収する */
+function absorbSingles(cages,sol,maxS){
+  var at={},i,k,t;
+  for(i=0;i<cages.length;i++) for(k=0;k<cages[i].length;k++) at[cages[i][k]]=i;
+  for(i=0;i<cages.length;i++){
+    if(!cages[i]||cages[i].length!==1) continue;
+    var c=cages[i][0], nb=shuffle(neighbors4(c));
+    for(k=0;k<nb.length;k++){
+      var gi=at[nb[k]], g=cages[gi];
+      if(gi===i||!g||g.length>=maxS) continue;
+      var dup=false;
+      for(t=0;t<g.length;t++) if(sol[g[t]]===sol[c]) dup=true;
+      if(dup) continue;
+      g.push(c); g.sort(function(a,b){return a-b;}); at[c]=gi; cages[i]=null;
+      break;
+    }
+  }
+  return cages.filter(function(x){return x&&x.length;});
+}
+function makeKillerCages(sol,minS,maxS){
+  var raw=absorbSingles(partitionCages(sol,minS,maxS),sol,maxS), out=[],i,k,s;
+  for(i=0;i<raw.length;i++){
+    s=0; for(k=0;k<raw[i].length;k++) s+=sol[raw[i][k]];
+    out.push({c:raw[i],s:s});
+  }
+  out.sort(function(a,b){return a.c[0]-b.c[0];});
+  return out;
+}
+
+/* 「大きさ L・合計 S」になる数字の組み合わせを全列挙して table 化（9bit 全部で512通りだけ） */
+var COMBO={};
+(function(){
+  for(var mask=1;mask<512;mask++){
+    var digs=[],s=0,v;
+    for(v=1;v<=9;v++) if(mask&(1<<(v-1))){ digs.push(v); s+=v; }
+    var key=digs.length+'_'+s;
+    (COMBO[key]=COMBO[key]||[]).push(digs);
+  }
+})();
+
+/* ケージの候補を絞る。合計 sum になる組み合わせのうち、各マスの候補と
+   矛盾なく配れるものだけを残し、マスごとの許容ビットを返す。null は矛盾。
+   割当の列挙が膨らんだ場合は「組み合わせの和集合」という緩い評価に落とす
+   （緩い側に倒すので候補を消しすぎることはない）。 */
+function cageFilter(cells,cand,sum){
+  var L=cells.length, list=COMBO[L+'_'+sum];
+  if(!list) return null;
+  var allowed=new Array(L), any=false, ci, t;
+  for(t=0;t<L;t++) allowed[t]=0;
+  for(ci=0;ci<list.length;ci++){
+    var digs=list[ci], usedD=0, asg=new Array(L), budget=400, hit=false;
+    (function rec(k){
+      if(budget<=0) return;
+      if(k===L){ hit=true; any=true; for(var q=0;q<L;q++) allowed[q]|=(1<<asg[q]); return; }
+      for(var d=0;d<L;d++){
+        if(usedD&(1<<d)) continue;
+        if(!(cand[cells[k]]&(1<<digs[d]))) continue;
+        budget--; if(budget<=0) return;
+        usedD|=(1<<d); asg[k]=digs[d];
+        rec(k+1);
+        usedD&=~(1<<d);
+      }
+    })(0);
+    if(budget<=0){                       /* 打ち切ったら緩い評価にする */
+      var um=0; for(t=0;t<L;t++) um|=(1<<digs[t]);
+      for(t=0;t<L;t++) allowed[t]|=um;
+      any=true;
+    }
+  }
+  return any?allowed:null;
+}
+
+/* 合計制約つきソルバー（候補伝播つき）。解を limit まで数える。
+   探索が budget ノードを超えたら -1（判定不能）を返して呼び出し側で捨てる。 */
+function killerCount(cages,limit,budget,wantSolutions){
+  var nC=cages.length, cellCage=new Int8Array(81), i,k;
+  for(i=0;i<nC;i++) for(k=0;k<cages[i].c.length;k++) cellCage[cages[i].c[k]]=i;
+  var count=0, nodes=0, over=false, found=[];
+  var dirty=new Uint8Array(nC);
+
+  /* cageFilter は重いので、候補が動いたケージだけ再評価する */
+  function propagate(cand,seed){
+    var gi,g,allowed,nc,m,ps,u,unit,v,cnt,at,j,loop=true;
+    dirty.fill(0);
+    if(seed<0) dirty.fill(1); else dirty[cellCage[seed]]=1;
+    while(loop){
+      loop=false;
+      for(gi=0;gi<nC;gi++){
+        if(!dirty[gi]) continue;
+        dirty[gi]=0;
+        g=cages[gi];
+        allowed=cageFilter(g.c,cand,g.s);
+        if(!allowed) return false;
+        for(k=0;k<g.c.length;k++){
+          nc=cand[g.c[k]]&allowed[k];
+          if(!nc) return false;
+          if(nc!==cand[g.c[k]]){ cand[g.c[k]]=nc; dirty[cellCage[g.c[k]]]=1; loop=true; }
+        }
+      }
+      for(j=0;j<81;j++){                              /* 確定マスを行・列・ブロックから除去 */
+        if(bc(cand[j])!==1) continue;
+        m=cand[j]; ps=PEERS[j];
+        for(k=0;k<ps.length;k++){
+          if(cand[ps[k]]&m){
+            cand[ps[k]]&=~m;
+            if(!cand[ps[k]]) return false;
+            dirty[cellCage[ps[k]]]=1; loop=true;
+          }
+        }
+      }
+      for(u=0;u<27;u++){                              /* 隠れた単数 */
+        unit=GROUPS[u];
+        for(v=1;v<=9;v++){
+          m=1<<v; cnt=0; at=-1;
+          for(k=0;k<9;k++) if(cand[unit[k]]&m){ cnt++; at=unit[k]; }
+          if(!cnt) return false;
+          if(cnt===1&&cand[at]!==m){ cand[at]=m; dirty[cellCage[at]]=1; loop=true; }
+        }
+      }
+    }
+    return true;
+  }
+
+  function rec(cand,seed){
+    if(over) return;
+    if(++nodes>budget){ over=true; return; }
+    if(!propagate(cand,seed)) return;
+    var best=-1,bestC=10,c,j;
+    for(j=0;j<81;j++){ c=bc(cand[j]); if(c>1&&c<bestC){ bestC=c; best=j; if(c===2) break; } }
+    if(best===-1){                                    /* 全マス確定＝解 */
+      count++;
+      if(wantSolutions){
+        var g=new Array(81);
+        for(j=0;j<81;j++) g[j]=lowDigit(cand[j]);
+        found.push(g);
+      }
+      return;
+    }
+    for(var v=1;v<=9;v++){
+      if(!(cand[best]&(1<<v))) continue;
+      var next=cand.slice();
+      next[best]=1<<v;
+      rec(next,best);
+      if(count>=limit||over) return;
+    }
+  }
+
+  var init=new Int16Array(81);
+  for(i=0;i<81;i++) init[i]=0x3FE;
+  rec(init,-1);
+  KLAST.nodes=nodes;      /* nodes===1 なら「枝分かれなし＝候補伝播だけで解けた」 */
+  if(wantSolutions) return {n:over?-1:count, sols:found};
+  return over?-1:count;
+}
+var KLAST={nodes:0};   /* 直前の探索ノード数（診断用） */
+
+/* 隣り合うケージの組を列挙する */
+function cageAdjacentPairs(cages){
+  var at={},i,k,t,seen={},pairs=[];
+  for(i=0;i<cages.length;i++) for(k=0;k<cages[i].c.length;k++) at[cages[i].c[k]]=i;
+  for(i=0;i<cages.length;i++) for(k=0;k<cages[i].c.length;k++){
+    var nb=neighbors4(cages[i].c[k]);
+    for(t=0;t<nb.length;t++){
+      var j=at[nb[t]];
+      if(j===i) continue;
+      var key=Math.min(i,j)+'_'+Math.max(i,j);
+      if(seen[key]) continue;
+      seen[key]=1; pairs.push([Math.min(i,j),Math.max(i,j)]);
+    }
+  }
+  return pairs;
+}
+
+/* 小さいケージで一意解の土台を作り、一意性が壊れない併合だけを採用して大きくする。
+   採用時は必ずソルバーが「解1通り」と断定した場合だけなので、結果は常に検証済み。 */
+var KBUD=3000;      /* 1回の一意性判定に許すノード数 */
+/* 少しずつ進められる生成器。step(ms) は ms ミリ秒だけ作業を進め、
+   未完成なら null、完成したら結果を返す。UI を固めないための分割実行用。 */
+function killerBuilder(maxS,maxMerge){
+  var sol=null, arr=null, pairs=null, redir=null, p=0, merges=0, bases=0, phase='base';
+  function root(x){ while(redir[x]!==x) x=redir[x]; return x; }
+  return {
+    label:function(){ return phase==='base' ? '土台を作成中… '+bases+'回目' : 'ケージを併合中… '+merges+'個'; },
+    step:function(ms){
+      var t0=Date.now();
+      while(phase!=='done' && Date.now()-t0<ms){
+        if(phase==='base'){
+          bases++;
+          var s=generateFull(), b=makeKillerCages(s,2,3);
+          if(killerCount(b,2,KBUD)===1){
+            sol=s; arr=b.slice(); redir=[];
+            for(var i=0;i<arr.length;i++) redir[i]=i;
+            pairs=shuffle(cageAdjacentPairs(b));
+            phase='merge';
+          }
+          continue;
+        }
+        if(p>=pairs.length||merges>=maxMerge){ phase='done'; break; }
+        var a=root(pairs[p][0]), b2=root(pairs[p][1]); p++;
+        if(a===b2||!arr[a]||!arr[b2]) continue;
+        var A=arr[a], B=arr[b2];
+        if(A.c.length+B.c.length>maxS) continue;
+        var cells=A.c.concat(B.c), dup=false, ds={}, k;
+        for(k=0;k<cells.length;k++){ if(ds[sol[cells[k]]]){dup=true;break;} ds[sol[cells[k]]]=1; }
+        if(dup) continue;                     /* 同じケージに同じ数字は入れられない */
+        var cand={c:cells.slice().sort(function(x,y){return x-y;}), s:A.s+B.s};
+        var trial=[],j;
+        for(j=0;j<arr.length;j++){
+          if(!arr[j]||j===b2) continue;
+          trial.push(j===a?cand:arr[j]);
+        }
+        /* ソルバーが「解1通り」と断定した併合だけ採用する */
+        if(killerCount(trial,2,KBUD)===1){ arr[a]=cand; arr[b2]=null; redir[b2]=a; merges++; }
+      }
+      if(phase!=='done') return null;
+      var out=arr.filter(Boolean);
+      out.sort(function(x,y){return x.c[0]-y.c[0];});
+      return {sol:sol, cages:out, merges:merges, bases:bases};
+    }
+  };
+}
+
+/* ===== 状態 ===== */
+var S=null, sel=-1, memo=false;
+
+/* 条件に合う手筋レベルの盤面が出るまで生成を繰り返す。
+   UI を固めないよう 70ms ずつに刻み、時間切れなら一番近い盤面を採用する。 */
+function newGame(d,onDone){
+  var spec=DIFF[d], best=null, bestScore=1e9, tries=0, t0=Date.now();
+  var lbl=document.getElementById('genLbl');
+  function step(){
+    var chunk=Date.now();
+    while(Date.now()-chunk<70){
+      tries++;
+      var sol=generateFull(), puz=makePuzzle(sol,spec.c), g=humanSolve(puz);
+      var lv=g.solved?g.lv:4;
+      var score=(lv<spec.lo?spec.lo-lv:0)+(lv>spec.hi?lv-spec.hi:0);
+      if(score<bestScore){ bestScore=score; best={sol:sol,puz:puz,lv:lv}; }
+      if(!score||Date.now()-t0>GEN_BUDGET) break;
+    }
+    if(!bestScore||Date.now()-t0>GEN_BUDGET){ finish(); return; }
+    if(lbl) lbl.textContent='盤面を厳選中… '+tries+'局目';
+    setTimeout(step,0);
+  }
+  function finish(){
+    var given=best.puz.map(function(v){return v!==0;});
+    S={game:'n', diff:d, sol:best.sol, given:given, board:best.puz.slice(),
+       notes:new Array(81).fill(0), undo:[], miss:0, done:false, lv:best.lv,
+       cages: spec.cage ? buildCages(given,best.sol) : []};
+    sel=-1; memo=false; save(); renderCages(); renderAll();
+    if(onDone) onDone();
+  }
+  step();
+}
+
+/* キラーナンプレの開局。生成器を 70ms ずつ回して UI を止めない。 */
+function newKiller(d,onDone){
+  var spec=KDIFF[d], builder=killerBuilder(spec.maxS,spec.merges);
+  var lbl=document.getElementById('genLbl');
+  function step(){
+    var r=builder.step(70);
+    if(!r){
+      if(lbl) lbl.textContent=builder.label();
+      setTimeout(step,0);
+      return;
+    }
+    S={game:'k', diff:d, sol:r.sol, given:new Array(81).fill(false),
+       board:new Array(81).fill(0), notes:new Array(81).fill(0),
+       undo:[], miss:0, done:false, cages:r.cages};
+    sel=-1; memo=false; save(); renderCages(); renderAll();
+    if(onDone) onDone();
+  }
+  step();
+}
+function save(){ if(S){ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} } }
+function load(){
+  try{
+    var o=JSON.parse(localStorage.getItem(KEY));
+    if(o&&Array.isArray(o.board)&&o.board.length===81){
+      S=o; S.undo=S.undo||[]; S.game=S.game||'n';   /* 旧セーブは数独として扱う */
+      return true;
+    }
+  }catch(e){}
+  return false;
+}
+
+/* ===== ルール判定 ===== */
+var GROUPS=(function(){
+  var gs=[],r,c,b,k,a;
+  for(r=0;r<9;r++){a=[];for(c=0;c<9;c++)a.push(r*9+c);gs.push(a);}
+  for(c=0;c<9;c++){a=[];for(r=0;r<9;r++)a.push(r*9+c);gs.push(a);}
+  for(b=0;b<9;b++){a=[];for(k=0;k<9;k++)a.push((((b/3)|0)*3+((k/3)|0))*9+(b%3)*3+(k%3));gs.push(a);}
+  return gs;
+})();
+function conflicts(){
+  var bad={},gi,g,seen,k,i,v,vv;
+  for(gi=0;gi<GROUPS.length;gi++){
+    g=GROUPS[gi]; seen={};
+    for(k=0;k<9;k++){ i=g[k]; v=S.board[i]; if(!v) continue; (seen[v]=seen[v]||[]).push(i); }
+    for(vv in seen) if(seen[vv].length>1) seen[vv].forEach(function(x){bad[x]=1;});
+  }
+  /* キラーはケージの規則も反則判定する：同じ数字の重複／合計超過／埋まったのに合計違い */
+  if(S.game==='k'&&S.cages){
+    for(gi=0;gi<S.cages.length;gi++){
+      var cg=S.cages[gi], sum=0, filled=0, dup={};
+      for(k=0;k<cg.c.length;k++){
+        v=S.board[cg.c[k]];
+        if(!v) continue;
+        filled++; sum+=v;
+        (dup[v]=dup[v]||[]).push(cg.c[k]);
+      }
+      for(vv in dup) if(dup[vv].length>1) dup[vv].forEach(function(x){bad[x]=1;});
+      if(sum>cg.s || (filled===cg.c.length&&sum!==cg.s))
+        for(k=0;k<cg.c.length;k++) if(S.board[cg.c[k]]) bad[cg.c[k]]=1;
+    }
+  }
+  return bad;
+}
+function badCount(b){return Object.keys(b).length;}
+function isComplete(){
+  for(var i=0;i<81;i++) if(!S.board[i]) return false;
+  return badCount(conflicts())===0;
+}
+
+/* ===== 入力 ===== */
+function pushUndo(i){ S.undo.push({i:i, v:S.board[i], n:S.notes[i], miss:S.miss}); if(S.undo.length>400) S.undo.shift(); }
+function place(n){
+  if(!S||S.done||sel<0||S.given[sel]) return;
+  if(memo){
+    if(S.board[sel]) return;
+    pushUndo(sel); S.notes[sel]^=(1<<n);
+  }else{
+    pushUndo(sel);
+    if(S.board[sel]===n) S.board[sel]=0;
+    else{
+      S.board[sel]=n; S.notes[sel]=0;
+      if(conflicts()[sel]) S.miss++;
+    }
+  }
+  after();
+}
+function erase(){
+  if(!S||S.done||sel<0||S.given[sel]) return;
+  if(!S.board[sel]&&!S.notes[sel]) return;
+  pushUndo(sel); S.board[sel]=0; S.notes[sel]=0; after();
+}
+function undo(){
+  if(!S||S.done||!S.undo.length) return;
+  var u=S.undo.pop();
+  S.board[u.i]=u.v; S.notes[u.i]=u.n; S.miss=u.miss; sel=u.i;
+  renderAll(); save();
+}
+function after(){ renderAll(); save(); if(isComplete()) win(); }
+function win(){
+  S.done=true; save();
+  document.getElementById('winDiff').textContent=
+    (S.game==='k'?'キラー・':'')+curDiffList()[S.diff].n;
+  document.getElementById('winSub').textContent='ミス '+S.miss;
+  var ov=document.getElementById('ovWin');
+  ov.classList.remove('lit');
+  ov.classList.add('show'); ov.classList.add('fxon');
+  celebrate();
+  /* 暗幕は少し遅らせて、まず盤面と花火を見せる */
+  if(REDUCED) ov.classList.add('lit');
+  else setTimeout(function(){ ov.classList.add('lit'); },600);
+}
+
+/* ===== 描画 ===== */
+var boardEl=document.getElementById('board'), padEl=document.getElementById('pad');
+function baseCls(i){
+  return 'cell'+(((i%9)%3===2&&i%9!==8)?' br':'')+(((((i/9)|0)%3===2)&&i<72)?' bb':'');
+}
+var cageSvg=null;
+function mkSvg(tag,attrs){
+  var e=document.createElementNS('http://www.w3.org/2000/svg',tag),k;
+  for(k in attrs) e.setAttribute(k,attrs[k]);
+  return e;
+}
+(function build(){
+  for(var i=0;i<81;i++){
+    var d=document.createElement('div');
+    d.className=baseCls(i);
+    (function(k){ d.addEventListener('pointerdown',function(){ sel=k; renderAll(); }); })(i);
+    boardEl.appendChild(d);
+  }
+  /* セル81個の“後ろ”に足す。children[0..80] はセルのままなので添字がずれない */
+  cageSvg=mkSvg('svg',{id:'cages',viewBox:'0 0 90 90'});
+  boardEl.appendChild(cageSvg);
+  for(var n=1;n<=9;n++){
+    var b=document.createElement('button');
+    b.className='num'; b.textContent=n; b.dataset.n=n;
+    (function(v){ b.addEventListener('pointerdown',function(e){ e.preventDefault(); place(v); }); })(n);
+    padEl.appendChild(b);
+  }
+})();
+
+/* ケージの外周だけを点線で描く。隣が同じケージなら線を角まで伸ばして繋げる。 */
+var CAGE_LABEL={};
+function renderCages(){
+  CAGE_LABEL={};
+  while(cageSvg.firstChild) cageSvg.removeChild(cageSvg.firstChild);
+  if(!S||!S.cages||!S.cages.length) return;
+  var U=10, pad=1.35, gi,cg,inC,k,i,r,c,x0,y0,x1,y1,L,R,T,B,txt;
+  function line(a,b,cc,d){ cageSvg.appendChild(mkSvg('line',{x1:a,y1:b,x2:cc,y2:d})); }
+  for(gi=0;gi<S.cages.length;gi++){
+    cg=S.cages[gi]; inC={};
+    for(k=0;k<cg.c.length;k++) inC[cg.c[k]]=1;
+    for(k=0;k<cg.c.length;k++){
+      i=cg.c[k]; r=(i/9)|0; c=i%9;
+      x0=c*U; y0=r*U; x1=x0+U; y1=y0+U;
+      L=(c>0&&inC[i-1]); R=(c<8&&inC[i+1]); T=(r>0&&inC[i-9]); B=(r<8&&inC[i+9]);
+      if(!T) line(x0+(L?0:pad), y0+pad, x1-(R?0:pad), y0+pad);
+      if(!B) line(x0+(L?0:pad), y1-pad, x1-(R?0:pad), y1-pad);
+      if(!L) line(x0+pad, y0+(T?0:pad), x0+pad, y1-(B?0:pad));
+      if(!R) line(x1-pad, y0+(T?0:pad), x1-pad, y1-(B?0:pad));
+    }
+    i=cg.c[0];                       /* 添字最小＝ケージの左上のマス */
+    CAGE_LABEL[i]=cg.s;
+    r=(i/9)|0; c=i%9;
+    txt=mkSvg('text',{x:c*U+pad+0.5, y:r*U+pad+2.7});
+    txt.textContent=cg.s;
+    cageSvg.appendChild(txt);
+  }
+}
+
+function renderAll(){
+  if(!S) return;
+  var bad=conflicts();
+  var selV=sel>=0?S.board[sel]:0;
+  var sr=sel>=0?((sel/9)|0):-1, sc=sel>=0?(sel%9):-1, sb=sel>=0?boxOf(sel):-1;
+  var cells=boardEl.children,i,el,v,cls,n,h;
+  for(i=0;i<81;i++){
+    el=cells[i]; v=S.board[i]; cls=baseCls(i);
+    if(sel>=0){
+      if(((i/9)|0)===sr||i%9===sc||boxOf(i)===sb) cls+=' peer';
+      if(selV&&v===selV) cls+=' same';
+      if(i===sel) cls+=' sel';
+    }
+    if(v) cls+=S.given[i]?' given':' user';
+    if(CAGE_LABEL[i]!==undefined) cls+=' hassum';
+    if(bad[i]) cls+=' err';
+    el.className=cls;
+    if(v) el.textContent=v;
+    else if(S.notes[i]){
+      h='<div class="notes">';
+      for(n=1;n<=9;n++) h+='<span>'+(((S.notes[i]>>n)&1)?n:'')+'</span>';
+      el.innerHTML=h+'</div>';
+    } else el.textContent='';
+  }
+  var cnt=new Array(10).fill(0);
+  for(i=0;i<81;i++) if(S.board[i]) cnt[S.board[i]]++;
+  for(i=0;i<9;i++) padEl.children[i].classList.toggle('done',cnt[i+1]>=9);
+  document.getElementById('diffLbl').textContent=
+    (S.game==='k'?'キラー・':'')+curDiffList()[S.diff].n;
+  document.getElementById('missLbl').textContent=S.miss;
+  var mb=document.getElementById('memoBtn');
+  mb.classList.toggle('on',memo);
+  mb.querySelector('.tag').textContent=memo?'ON':'OFF';
+}
+
+/* ===== クリア演出（花火・紙吹雪） =====
+   #ovWin の中にキャンバスを敷き、暗幕とカードより後ろ・盤面より前で描く。 */
+var FXC=['#ffd166','#ef476f','#06d6a0','#4cc9f0','#f78c6b','#c77dff','#ffe66d'];
+var fxCv=null, fxG=null, fxP=[], fxQ=[], fxRaf=0, fxLast=0;
+var REDUCED = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+function fxInit(){
+  if(fxCv) return;
+  fxCv=document.createElement('canvas'); fxCv.id='fx';
+  var ov=document.getElementById('ovWin');
+  ov.insertBefore(fxCv,ov.firstChild);
+  fxG=fxCv.getContext('2d');
+  addEventListener('resize',fxSize);
+}
+function fxSize(){
+  if(!fxCv) return;
+  var d=Math.min(2, window.devicePixelRatio||1);   /* 高DPR端末で描画量が爆発しないよう上限 */
+  fxCv.width=Math.round(innerWidth*d); fxCv.height=Math.round(innerHeight*d);
+  fxG.setTransform(d,0,0,d,0,0);
+}
+function fxColor(){ return FXC[(Math.random()*FXC.length)|0]; }
+
+function fxBurst(x,y){                       /* 花火：一点から放射状に */
+  var n=48, col=fxColor(), i,a,sp;
+  for(i=0;i<n;i++){
+    a=Math.PI*2*i/n + Math.random()*0.14;
+    sp=95+Math.random()*175;
+    fxP.push({t:'s', x:x, y:y, vx:Math.cos(a)*sp, vy:Math.sin(a)*sp, g:115,
+              life:0.85+Math.random()*0.75, max:1.6, drag:0.982,
+              col:Math.random()<0.22?'#ffffff':col, sz:1.7+Math.random()*1.7});
+  }
+}
+function fxRain(n){                          /* 紙吹雪：上から降らせる */
+  for(var i=0;i<n;i++)
+    fxP.push({t:'c', x:Math.random()*innerWidth, y:-24-Math.random()*innerHeight*0.6,
+              vx:(Math.random()-0.5)*70, vy:70+Math.random()*95, g:55,
+              life:3.4+Math.random()*2.4, max:5.8, drag:1, col:fxColor(),
+              w:5+Math.random()*5, h:8+Math.random()*7,
+              rot:Math.random()*6.28, vrot:(Math.random()-0.5)*10});
+}
+function fxCannon(dir){                      /* クラッカー：画面下の左右から噴き上げ */
+  var x = dir>0 ? -12 : innerWidth+12;
+  for(var i=0;i<46;i++)
+    fxP.push({t:'c', x:x, y:innerHeight*0.9,
+              vx:dir*(270+Math.random()*430), vy:-(370+Math.random()*390), g:640,
+              life:2.4+Math.random()*1.7, max:4.1, drag:0.993, col:fxColor(),
+              w:5+Math.random()*5, h:8+Math.random()*7,
+              rot:Math.random()*6.28, vrot:(Math.random()-0.5)*15});
+}
+
+function fxLoop(now){
+  var dt=Math.min(48, now-fxLast)/1000; fxLast=now;
+  fxG.clearRect(0,0,innerWidth,innerHeight);
+  while(fxQ.length && fxQ[0].at<=now){ var b=fxQ.shift(); b.run(); }
+  for(var i=fxP.length-1;i>=0;i--){
+    var p=fxP[i];
+    p.life-=dt;
+    if(p.life<=0 || p.y>innerHeight+60){ fxP.splice(i,1); continue; }
+    p.vy+=p.g*dt; p.x+=p.vx*dt; p.y+=p.vy*dt;
+    if(p.drag!==1){ p.vx*=p.drag; p.vy*=p.drag; }
+    var al=Math.min(1, p.life/(p.max*0.42));
+    fxG.globalAlpha=al;
+    if(p.t==='s'){
+      fxG.strokeStyle=p.col; fxG.lineWidth=p.sz; fxG.lineCap='round';
+      fxG.beginPath();
+      fxG.moveTo(p.x-p.vx*0.022, p.y-p.vy*0.022);
+      fxG.lineTo(p.x,p.y);
+      fxG.stroke();
+    }else{
+      p.rot+=p.vrot*dt;
+      fxG.save(); fxG.translate(p.x,p.y); fxG.rotate(p.rot);
+      fxG.fillStyle=p.col;
+      fxG.fillRect(-p.w/2, -p.h/2, p.w, p.h*Math.abs(Math.cos(p.rot*1.7)));  /* ひらひら */
+      fxG.restore();
+    }
+  }
+  fxG.globalAlpha=1;
+  if(fxP.length||fxQ.length) fxRaf=requestAnimationFrame(fxLoop);
+  else { fxRaf=0; fxG.clearRect(0,0,innerWidth,innerHeight); }
+}
+function fxStop(){
+  if(fxRaf){ cancelAnimationFrame(fxRaf); fxRaf=0; }
+  fxP=[]; fxQ=[];
+  if(fxG) fxG.clearRect(0,0,innerWidth,innerHeight);
+  var cells=boardEl.children;
+  for(var i=0;i<81;i++) cells[i].style.animation='';
+  boardEl.classList.remove('win');
+}
+
+/* 盤面のウェーブ → クラッカー → 花火と紙吹雪 */
+function celebrate(){
+  if(REDUCED) return;
+  fxInit(); fxSize(); fxStop();
+  var cells=boardEl.children, i;
+  for(i=0;i<81;i++)
+    cells[i].style.animation='cellPop .5s ease-out '+(((i/9|0)+(i%9))*0.042).toFixed(3)+'s both';
+  boardEl.classList.add('win');
+  setTimeout(function(){ for(var k=0;k<81;k++) cells[k].style.animation=''; },1800);
+
+  var t0=performance.now();
+  function at(ms,fn){ fxQ.push({at:t0+ms, run:fn}); }
+  at(240,function(){ fxCannon(1); fxCannon(-1); });
+  at(300,function(){ fxRain(70); });
+  at(1000,function(){ fxRain(55); });
+  [520,980,1460,2050,2700,3350].forEach(function(ms){
+    at(ms,function(){
+      fxBurst(innerWidth*(0.16+Math.random()*0.68), innerHeight*(0.14+Math.random()*0.4));
+    });
+  });
+  fxQ.sort(function(a,b){return a.at-b.at;});
+  fxLast=performance.now();
+  fxRaf=requestAnimationFrame(fxLoop);
+}
+
+/* アプリを離れるタイミングでも保険で保存（通常は入力のたびに保存済み） */
+document.addEventListener('visibilitychange',function(){ if(document.hidden) save(); });
+
+/* ===== UI ===== */
+document.getElementById('memoBtn').addEventListener('click',function(){memo=!memo;renderAll();});
+document.getElementById('eraseBtn').addEventListener('click',erase);
+document.getElementById('undoBtn').addEventListener('click',undo);
+document.getElementById('newBtn').addEventListener('click',function(){document.getElementById('ovNew').classList.add('show');});
+document.getElementById('cancelNew').addEventListener('click',function(){document.getElementById('ovNew').classList.remove('show');});
+document.getElementById('againBtn').addEventListener('click',function(){
+  var ov=document.getElementById('ovWin');
+  fxStop();
+  ov.classList.remove('show'); ov.classList.remove('fxon'); ov.classList.remove('lit');
+  document.getElementById('ovNew').classList.add('show');
+});
+var pickGame='n';
+var GAME_DESC={
+  n:'答えは必ず1通り。解くのに必要な手筋を判定して盤面を選んでいます。',
+  k:'ヒント数字なし。点線のケージ内の合計だけが手がかりで、ケージ内に同じ数字は入りません。'
+};
+function buildDiffList(){
+  var dl=document.getElementById('diffList');
+  dl.innerHTML='';
+  document.getElementById('gameDesc').textContent=GAME_DESC[pickGame];
+  (pickGame==='k'?KDIFF:DIFF).forEach(function(spec,d){
+    var b=document.createElement('button');
+    b.className='dbtn';
+    b.innerHTML=spec.n+'<small>'+spec.d+'</small>';
+    b.addEventListener('click',function(){
+      var g=pickGame;
+      document.getElementById('ovNew').classList.remove('show');
+      document.getElementById('genLbl').textContent='盤面を厳選中…';
+      document.getElementById('ovGen').classList.add('show');
+      setTimeout(function(){
+        var done=function(){ document.getElementById('ovGen').classList.remove('show'); };
+        if(g==='k') newKiller(d,done); else newGame(d,done);
+      },30);
+    });
+    dl.appendChild(b);
+  });
+}
+Array.prototype.forEach.call(document.querySelectorAll('.gtab'),function(t){
+  t.addEventListener('click',function(){
+    pickGame=t.dataset.g;
+    Array.prototype.forEach.call(document.querySelectorAll('.gtab'),function(x){
+      x.classList.toggle('on',x.dataset.g===pickGame);
+    });
+    buildDiffList();
+  });
+});
+buildDiffList();
+document.addEventListener('keydown',function(e){
+  if(!S) return;
+  if(e.key>='1'&&e.key<='9'){place(+e.key);e.preventDefault();return;}
+  if(e.key==='Backspace'||e.key==='Delete'||e.key==='0'){erase();e.preventDefault();return;}
+  if(e.key==='n'||e.key==='N'){memo=!memo;renderAll();return;}
+  if((e.key==='z'||e.key==='Z')&&(e.metaKey||e.ctrlKey)){undo();e.preventDefault();return;}
+  var map={ArrowLeft:-1,ArrowRight:1,ArrowUp:-9,ArrowDown:9};
+  if(map[e.key]!==undefined&&sel>=0){
+    var t=sel+map[e.key], r=(sel/9)|0;
+    if((e.key==='ArrowLeft'||e.key==='ArrowRight')&&((t/9)|0)!==r) t=sel;
+    if(t>=0&&t<81){sel=t;renderAll();}
+    e.preventDefault();
+  }
+});
+document.addEventListener('gesturestart',function(e){e.preventDefault();});
+
+/* ===== 起動 ===== */
+if(load()){
+  pickGame=S.game;
+  Array.prototype.forEach.call(document.querySelectorAll('.gtab'),function(x){
+    x.classList.toggle('on',x.dataset.g===pickGame);
+  });
+  buildDiffList();
+  renderCages(); renderAll();
+  if(S.done) document.getElementById('ovNew').classList.add('show');
+}else{
+  document.getElementById('ovNew').classList.add('show');
+}
+</script>
+</body>
+</html>
