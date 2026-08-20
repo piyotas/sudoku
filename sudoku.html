@@ -60,9 +60,9 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
 
 /* ---- board ---- */
 #board{
-  position:relative;
+  position:relative; --n:9; --nc:3;
   width:var(--bs); height:var(--bs); display:grid;
-  grid-template-columns:repeat(9,1fr); grid-template-rows:repeat(9,1fr);
+  grid-template-columns:repeat(var(--n),1fr); grid-template-rows:repeat(var(--n),1fr);
   background:var(--panel); border:3px solid var(--line-strong); border-radius:6px;
   box-shadow:var(--shadow); overflow:hidden;
 }
@@ -70,16 +70,17 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
    viewBox 座標のまま書けば自動で拡大縮小される。クリックは透過。 */
 #cages{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;}
 #cages line{stroke:var(--cage);stroke-width:.38;stroke-dasharray:1.8 1.5;stroke-linecap:round;}
-#cages text{fill:var(--cagetxt);font-size:2.7px;font-weight:700;
+#cages text{fill:var(--cagetxt);font-size:1.7px;font-weight:700;
             font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;}
 .cell{
   position:relative; display:flex; align-items:center; justify-content:center;
   border-right:1px solid var(--line); border-bottom:1px solid var(--line);
-  font-size:calc(var(--bs)/9*.62); line-height:1; font-weight:400;
+  font-size:calc(var(--bs)/var(--n)*.62); line-height:1; font-weight:400;
   background:var(--panel); transition:background-color .08s;
 }
-.cell:nth-child(9n){border-right:none;}
-.cell:nth-child(n+73){border-bottom:none;}
+/* 端の罫線は JS が付けるクラスで消す（盤面サイズが可変なため nth-child は使えない） */
+.cell.lastc{border-right:none;}
+.cell.lastr{border-bottom:none;}
 .cell.br{border-right:3px solid var(--line-strong);}
 .cell.bb{border-bottom:3px solid var(--line-strong);}
 .cell.peer{background:var(--peer);}
@@ -89,18 +90,25 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
 .cell.user{color:var(--user);font-weight:600;}
 .cell.err{color:var(--err)!important;background:var(--errbg);}
 .cell .notes{
-  position:absolute;inset:6%;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);
-  font-size:calc(var(--bs)/9*.235);color:var(--note);font-weight:600;line-height:1;
+  position:absolute;inset:6%;display:grid;
+  grid-template-columns:repeat(var(--nc),1fr);grid-auto-rows:1fr;
+  font-size:calc(var(--bs)/var(--n)*.235);color:var(--note);font-weight:600;line-height:1;
 }
 .cell .notes span{display:flex;align-items:center;justify-content:center;}
-/* 合計値が載るマスは、メモを合計値の下に追い出す（重なり防止） */
-.cell.hassum .notes{inset:44% 5% 4% 5%;font-size:calc(var(--bs)/9*.165);}
+/* 枠の数字が載るマスは、入力した数字とメモを合計値の下に逃がす（重なり防止）。
+   .notes は絶対配置なので padding の影響を受けず、inset だけで位置が決まる。 */
+/* ずらすのはラベルのあるマスだけで足りるが、それだと数字の高さが不揃いになるので
+   枠を使うゲームでは盤面全体を同じだけ下げて揃える。 */
+#board.haslabel .cell{padding-top:20%;}
+.cell.hassum .notes{inset:34% 5% 4% 5%;font-size:calc(var(--bs)/var(--n)*.19);}
 
 /* ---- number pad ---- */
-#pad{display:grid;grid-template-columns:repeat(9,1fr);gap:calc(var(--bs)*.014);width:var(--bs);}
+#pad{display:grid;grid-template-columns:repeat(var(--pn),1fr);gap:calc(var(--bs)*.014);width:var(--bs);}
 .num{
-  aspect-ratio:1/1; background:var(--btn); border:1px solid var(--btn-b); border-radius:10px;
-  font-size:calc(var(--bs)/9*.56); font-weight:600; display:flex;align-items:center;justify-content:center;
+  aspect-ratio:1/1; max-height:clamp(54px,10vh,84px);
+  background:var(--btn); border:1px solid var(--btn-b); border-radius:10px;
+  font-size:min(calc(var(--bs)/var(--pn)*.56),42px); font-weight:600;
+  display:flex;align-items:center;justify-content:center;
   box-shadow:var(--shadow); padding:0;
 }
 .num:active{background:var(--sel);}
@@ -136,9 +144,9 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
 .dbtn:active{transform:translateY(1px);}
 .dbtn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
 .dbtn small{display:block;font-weight:400;font-size:12px;opacity:.7;margin-top:3px;}
-#gameTabs{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:14px 0 4px;}
+#gameTabs{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin:14px 0 4px;}
 .gtab{background:var(--btn);border:1px solid var(--btn-b);border-radius:11px;
-      padding:11px 0;font-size:16px;font-weight:600;}
+      padding:11px 2px;font-size:14px;font-weight:600;}
 .gtab.on{background:var(--accent);border-color:var(--accent);color:#fff;}
 #spin{font-size:16px;color:#fff;text-align:center;}
 
@@ -196,6 +204,7 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
   <div id="gameTabs">
     <button class="gtab on" data-g="n">数独</button>
     <button class="gtab" data-g="k">キラー</button>
+    <button class="gtab" data-g="p">賢くなる</button>
   </div>
   <p id="gameDesc"></p>
   <div id="diffList"></div>
@@ -229,9 +238,19 @@ var KDIFF=[
   {n:'むずかしい', maxS:5, merges:45, d:'最大5マス・ケージが少なめ'},
   {n:'鬼',        maxS:6, merges:60, d:'最大6マス・ケージ数が最少'}
 ];
+/* 賢くなるパズル：難易度＝盤面サイズ。maxS=枠の最大マス数 / mulRate=3マス以上の枠を×にする割合 */
+var PDIFF=[
+  {n:'やさしい',   sz:4, maxS:3, mul:0.25, d:'4×4・枠は3マスまで'},
+  {n:'ふつう',     sz:5, maxS:4, mul:0.40, d:'5×5・枠は4マスまで'},
+  {n:'むずかしい', sz:6, maxS:4, mul:0.50, d:'6×6・かけ算多め'},
+  {n:'鬼',        sz:7, maxS:5, mul:0.55, d:'7×7・枠は5マスまで'}
+];
 var GEN_BUDGET=6000;   /* 条件に合う盤面を探す上限時間(ms) */
 var KEY='sudoku.save.v1';
-function curDiffList(){ return S&&S.game==='k' ? KDIFF : DIFF; }
+function curDiffList(){
+  if(!S) return DIFF;
+  return S.game==='k' ? KDIFF : S.game==='p' ? PDIFF : DIFF;
+}
 
 /* ===== 生成 ===== */
 function shuffle(a){for(var i=a.length-1;i>0;i--){var j=(Math.random()*(i+1))|0,t=a[i];a[i]=a[j];a[j]=t;}return a;}
@@ -790,6 +809,192 @@ function killerBuilder(maxS,maxMerge){
   };
 }
 
+/* ===== 賢くなるパズル（KenKen） =====
+   ルールは数独と別物：3×3ブロックは無く行と列だけ（ラテン方陣）、
+   枠内に同じ数字が入ってよい、枠は ＋−×÷ の4種類、盤面は4×4〜7×7。 */
+function idxN(m){ var a=[],i; for(i=0;i<m;i++) a.push(i); return a; }
+function neighbors4N(i,n){
+  var r=(i/n)|0, c=i%n, a=[];
+  if(r>0) a.push(i-n); if(r<n-1) a.push(i+n);
+  if(c>0) a.push(i-1); if(c<n-1) a.push(i+1);
+  return a;
+}
+/* ラテン方陣（各行・各列に1〜n が1回ずつ） */
+function latinSquare(n){
+  var g=new Array(n*n).fill(0), rows=new Array(n).fill(0), cols=new Array(n).fill(0);
+  (function rec(k){
+    if(k===n*n) return true;
+    var r=(k/n)|0, c=k%n, used=rows[r]|cols[c], cand=[],v;
+    for(v=1;v<=n;v++) if(!(used&(1<<v))) cand.push(v);
+    shuffle(cand);
+    for(var t=0;t<cand.length;t++){
+      var m=1<<cand[t];
+      g[k]=cand[t]; rows[r]|=m; cols[c]|=m;
+      if(rec(k+1)) return true;
+      g[k]=0; rows[r]&=~m; cols[c]&=~m;
+    }
+    return false;
+  })(0);
+  return g;
+}
+
+/* 枠の計算判定。vals は枠に入っている数字（順不同） */
+function opMatches(op,target,vals){
+  var i,s,p;
+  if(op==='='){ return vals[0]===target; }
+  if(op==='+'){ s=0; for(i=0;i<vals.length;i++) s+=vals[i]; return s===target; }
+  if(op==='*'){ p=1; for(i=0;i<vals.length;i++) p*=vals[i]; return p===target; }
+  var a=Math.max(vals[0],vals[1]), b=Math.min(vals[0],vals[1]);
+  if(op==='-') return a-b===target;
+  return b!==0 && a%b===0 && a/b===target;
+}
+/* 途中の時点で「もう成立しえない」か（反則の即時表示用・保守的に判定） */
+function opOverrun(op,target,vals){
+  var i,s,p;
+  if(op==='+'){ s=0; for(i=0;i<vals.length;i++) s+=vals[i]; return s>target; }
+  if(op==='*'){ p=1; for(i=0;i<vals.length;i++) p*=vals[i]; return p>target; }
+  return false;
+}
+/* 探索中の枝刈り：残り left マスで target に届く可能性があるか */
+function opFeasible(op,target,vals,left,n){
+  var i,s,p;
+  if(op==='+'){
+    s=0; for(i=0;i<vals.length;i++) s+=vals[i];
+    return s+left<=target && s+left*n>=target;
+  }
+  if(op==='*'){
+    p=1; for(i=0;i<vals.length;i++) p*=vals[i];
+    if(p>target||target%p!==0) return false;
+    return (target/p)<=Math.pow(n,left);
+  }
+  return true;                       /* −と÷ は2マス枠なので完成時に確定判定 */
+}
+
+/* 合計/積の制約つきソルバー。解を limit まで数える。-1 は探索打ち切り。 */
+function kkCount(n,cages,limit,budget){
+  var NN=n*n, cellCage=new Int8Array(NN), order=[], i,k;
+  var cg=cages.slice().sort(function(a,b){return a.c[0]-b.c[0];});
+  for(i=0;i<cg.length;i++) for(k=0;k<cg[i].c.length;k++){ cellCage[cg[i].c[k]]=i; order.push(cg[i].c[k]); }
+  /* 枠が盤面をちょうど覆っていなければ不正な問題として弾く */
+  if(order.length!==NN) return -2;
+  var rows=new Array(n).fill(0), cols=new Array(n).fill(0);
+  var cVals=[], cLeft=[];
+  for(i=0;i<cg.length;i++){ cVals.push([]); cLeft.push(cg[i].c.length); }
+  var count=0, nodes=0, over=false;
+  (function rec(p){
+    if(over) return;
+    if(++nodes>budget){ over=true; return; }
+    if(p===NN){ count++; return; }
+    var cell=order[p], r=(cell/n)|0, c=cell%n, gi=cellCage[cell], g=cg[gi];
+    var blocked=rows[r]|cols[c], v,m,ok;
+    for(v=1;v<=n;v++){
+      m=1<<v;
+      if(blocked&m) continue;
+      cVals[gi].push(v); cLeft[gi]--;
+      ok = cLeft[gi]===0 ? opMatches(g.op,g.v,cVals[gi])
+                         : opFeasible(g.op,g.v,cVals[gi],cLeft[gi],n);
+      if(ok){
+        rows[r]|=m; cols[c]|=m;
+        rec(p+1);
+        rows[r]&=~m; cols[c]&=~m;
+      }
+      cVals[gi].pop(); cLeft[gi]++;
+      if(count>=limit||over) return;
+    }
+  })(0);
+  return over?-1:count;
+}
+
+/* 盤面を枠に分割する（枠内の数字の重複は許される） */
+function kkPartition(n,maxS){
+  var NN=n*n, order=shuffle(idxN(NN)), used={}, cages=[], s,k,t,j,seed,cage,opts,pick,size;
+  for(s=0;s<order.length;s++){
+    seed=order[s];
+    if(used[seed]) continue;
+    /* 2〜3マスを厚めに、たまに1マスと最大サイズ */
+    size=Math.random()<0.08?1:(2+((Math.random()*(maxS-1))|0));
+    if(size>maxS) size=maxS;
+    cage=[seed]; used[seed]=1;
+    while(cage.length<size){
+      opts=[];
+      for(k=0;k<cage.length;k++){
+        var nb=neighbors4N(cage[k],n);
+        for(t=0;t<nb.length;t++){ j=nb[t]; if(!used[j]&&opts.indexOf(j)<0) opts.push(j); }
+      }
+      if(!opts.length) break;
+      pick=opts[(Math.random()*opts.length)|0];
+      used[pick]=1; cage.push(pick);
+    }
+    cage.sort(function(a,b){return a-b;});
+    cages.push(cage);
+  }
+  /* 1マス枠は答えがそのまま出てしまうので、隣の枠に吸収して keep 個までに減らす */
+  var at={},i;
+  for(i=0;i<cages.length;i++) for(k=0;k<cages[i].length;k++) at[cages[i][k]]=i;
+  var singles=shuffle(cages.map(function(c,ix){return c.length===1?ix:-1;}).filter(function(x){return x>=0;}));
+  var keep=Math.random()<0.5?1:0;
+  var moved=0;
+  for(s=0;s<singles.length&&moved<singles.length-keep;s++){
+    var si=singles[s];
+    /* 吸収先になって2マス以上に育った枠は、もう1マス枠ではないので触らない */
+    if(!cages[si]||cages[si].length!==1) continue;
+    var cell=cages[si][0], nb=shuffle(neighbors4N(cell,n));
+    for(k=0;k<nb.length;k++){
+      var gi=at[nb[k]];
+      if(gi===si||!cages[gi]||cages[gi].length>=maxS) continue;
+      cages[gi].push(cell);
+      cages[gi].sort(function(a,b){return a-b;});
+      at[cell]=gi; cages[si]=null; moved++;
+      break;
+    }
+  }
+  return cages.filter(function(c){return c&&c.length;});
+}
+/* 各枠に演算子と目標値を割り当てる。3マス以上は ＋ か × のみ（本式のルール） */
+function kkAssignOps(cages,sol,mulRate){
+  var out=[],i,k;
+  for(i=0;i<cages.length;i++){
+    var cells=cages[i], vals=[],s=0,p=1;
+    for(k=0;k<cells.length;k++){ vals.push(sol[cells[k]]); s+=sol[cells[k]]; p*=sol[cells[k]]; }
+    if(cells.length===1){ out.push({c:cells,op:'=',v:vals[0]}); continue; }
+    if(cells.length===2){
+      var a=Math.max(vals[0],vals[1]), b=Math.min(vals[0],vals[1]), cand=[];
+      cand.push({op:'+',v:a+b});
+      cand.push({op:'*',v:a*b});
+      if(a!==b) cand.push({op:'-',v:a-b});        /* 差が0の枠は作らない */
+      if(a%b===0) cand.push({op:'/',v:a/b});
+      var pick=cand[(Math.random()*cand.length)|0];
+      out.push({c:cells,op:pick.op,v:pick.v}); continue;
+    }
+    out.push(Math.random()<mulRate?{c:cells,op:'*',v:p}:{c:cells,op:'+',v:s});
+  }
+  return out;
+}
+
+/* 少しずつ進める生成器。同じ分割に対して演算子の割り当てを何度か振り直し、
+   駄目なら分割ごと作り直す。採用はソルバーが「解1通り」と断定したときだけ。 */
+var KKBUD=400000;
+function kkBuilder(n,maxS,mulRate){
+  var tries=0;
+  return {
+    label:function(){ return '盤面を厳選中… '+tries+'回目'; },
+    step:function(ms){
+      var t0=Date.now();
+      while(Date.now()-t0<ms){
+        var sol=latinSquare(n), part=kkPartition(n,maxS);
+        for(var a=0;a<6;a++){
+          tries++;
+          var cages=kkAssignOps(part,sol,mulRate);
+          if(kkCount(n,cages,2,KKBUD)===1)
+            return {n:n, sol:sol, cages:cages, tries:tries};
+          if(Date.now()-t0>=ms) break;
+        }
+      }
+      return null;
+    }
+  };
+}
+
 /* ===== 状態 ===== */
 var S=null, sel=-1, memo=false;
 
@@ -814,7 +1019,8 @@ function newGame(d,onDone){
   }
   function finish(){
     var given=best.puz.map(function(v){return v!==0;});
-    S={game:'n', diff:d, sol:best.sol, given:given, board:best.puz.slice(),
+    buildBoard(9,true);
+    S={game:'n', n:9, diff:d, sol:best.sol, given:given, board:best.puz.slice(),
        notes:new Array(81).fill(0), undo:[], miss:0, done:false, lv:best.lv,
        cages: spec.cage ? buildCages(given,best.sol) : []};
     sel=-1; memo=false; save(); renderCages(); renderAll();
@@ -834,8 +1040,27 @@ function newKiller(d,onDone){
       setTimeout(step,0);
       return;
     }
-    S={game:'k', diff:d, sol:r.sol, given:new Array(81).fill(false),
+    buildBoard(9,true);
+    S={game:'k', n:9, diff:d, sol:r.sol, given:new Array(81).fill(false),
        board:new Array(81).fill(0), notes:new Array(81).fill(0),
+       undo:[], miss:0, done:false, cages:r.cages};
+    sel=-1; memo=false; save(); renderCages(); renderAll();
+    if(onDone) onDone();
+  }
+  step();
+}
+
+/* 賢くなるパズルの開局。盤面サイズが変わるので DOM ごと組み直す。 */
+function newKenKen(d,onDone){
+  var spec=PDIFF[d], builder=kkBuilder(spec.sz,spec.maxS,spec.mul);
+  var lbl=document.getElementById('genLbl');
+  function step(){
+    var r=builder.step(70);
+    if(!r){ if(lbl) lbl.textContent=builder.label(); setTimeout(step,0); return; }
+    var NN=spec.sz*spec.sz;
+    buildBoard(spec.sz,false);
+    S={game:'p', n:spec.sz, diff:d, sol:r.sol, given:new Array(NN).fill(false),
+       board:new Array(NN).fill(0), notes:new Array(NN).fill(0),
        undo:[], miss:0, done:false, cages:r.cages};
     sel=-1; memo=false; save(); renderCages(); renderAll();
     if(onDone) onDone();
@@ -846,8 +1071,11 @@ function save(){ if(S){ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e
 function load(){
   try{
     var o=JSON.parse(localStorage.getItem(KEY));
-    if(o&&Array.isArray(o.board)&&o.board.length===81){
-      S=o; S.undo=S.undo||[]; S.game=S.game||'n';   /* 旧セーブは数独として扱う */
+    if(o&&Array.isArray(o.board)){
+      var n=o.n||9;
+      if(o.board.length!==n*n) return false;        /* 壊れたセーブは捨てる */
+      S=o; S.undo=S.undo||[]; S.game=S.game||'n'; S.n=n;   /* 旧セーブは9×9の数独 */
+      buildBoard(n, S.game!=='p');
       return true;
     }
   }catch(e){}
@@ -862,12 +1090,34 @@ var GROUPS=(function(){
   for(b=0;b<9;b++){a=[];for(k=0;k<9;k++)a.push((((b/3)|0)*3+((k/3)|0))*9+(b%3)*3+(k%3));gs.push(a);}
   return gs;
 })();
+/* 賢くなるパズルは任意サイズ・ブロック無しなので行と列だけを組にする */
+function unitsOf(n,blocks){
+  if(n===9&&blocks) return GROUPS;
+  var gs=[],r,c,a;
+  for(r=0;r<n;r++){a=[];for(c=0;c<n;c++)a.push(r*n+c);gs.push(a);}
+  for(c=0;c<n;c++){a=[];for(r=0;r<n;r++)a.push(r*n+c);gs.push(a);}
+  return gs;
+}
 function conflicts(){
-  var bad={},gi,g,seen,k,i,v,vv;
-  for(gi=0;gi<GROUPS.length;gi++){
-    g=GROUPS[gi]; seen={};
-    for(k=0;k<9;k++){ i=g[k]; v=S.board[i]; if(!v) continue; (seen[v]=seen[v]||[]).push(i); }
+  var n=S.n||9, bad={},gi,g,seen,k,i,v,vv;
+  var units=unitsOf(n, S.game!=='p');
+  for(gi=0;gi<units.length;gi++){
+    g=units[gi]; seen={};
+    for(k=0;k<g.length;k++){ i=g[k]; v=S.board[i]; if(!v) continue; (seen[v]=seen[v]||[]).push(i); }
     for(vv in seen) if(seen[vv].length>1) seen[vv].forEach(function(x){bad[x]=1;});
+  }
+  /* 賢くなるパズル：枠の計算が合わなければ反則。枠内の数字の重複は反則ではない */
+  if(S.game==='p'&&S.cages){
+    for(gi=0;gi<S.cages.length;gi++){
+      var pg=S.cages[gi], vals=[], nf=0;
+      for(k=0;k<pg.c.length;k++){ v=S.board[pg.c[k]]; if(v){ vals.push(v); nf++; } }
+      if(!nf) continue;
+      var wrong=false;
+      if(nf===pg.c.length) wrong = !opMatches(pg.op, pg.v, vals);
+      else wrong = opOverrun(pg.op, pg.v, vals);
+      if(wrong) for(k=0;k<pg.c.length;k++) if(S.board[pg.c[k]]) bad[pg.c[k]]=1;
+    }
+    return bad;
   }
   /* キラーはケージの規則も反則判定する：同じ数字の重複／合計超過／埋まったのに合計違い */
   if(S.game==='k'&&S.cages){
@@ -888,7 +1138,8 @@ function conflicts(){
 }
 function badCount(b){return Object.keys(b).length;}
 function isComplete(){
-  for(var i=0;i<81;i++) if(!S.board[i]) return false;
+  var NN=(S.n||9)*(S.n||9);
+  for(var i=0;i<NN;i++) if(!S.board[i]) return false;
   return badCount(conflicts())===0;
 }
 
@@ -896,6 +1147,7 @@ function isComplete(){
 function pushUndo(i){ S.undo.push({i:i, v:S.board[i], n:S.notes[i], miss:S.miss}); if(S.undo.length>400) S.undo.shift(); }
 function place(n){
   if(!S||S.done||sel<0||S.given[sel]) return;
+  if(n<1||n>(S.n||9)) return;              /* 盤面サイズ外の数字は受け付けない */
   if(memo){
     if(S.board[sel]) return;
     pushUndo(sel); S.notes[sel]^=(1<<n);
@@ -924,7 +1176,7 @@ function after(){ renderAll(); save(); if(isComplete()) win(); }
 function win(){
   S.done=true; save();
   document.getElementById('winDiff').textContent=
-    (S.game==='k'?'キラー・':'')+curDiffList()[S.diff].n;
+    (S.game==='k'?'キラー・':S.game==='p'?'賢くなる・':'')+curDiffList()[S.diff].n;
   document.getElementById('winSub').textContent='ミス '+S.miss;
   var ov=document.getElementById('ovWin');
   ov.classList.remove('lit');
@@ -937,72 +1189,102 @@ function win(){
 
 /* ===== 描画 ===== */
 var boardEl=document.getElementById('board'), padEl=document.getElementById('pad');
+/* 盤面サイズは可変（数独/キラー=9、賢くなるパズル=4〜7）。
+   BOARD_N が現在DOMに組まれているサイズ、BOARD_BLOCKS は3×3ブロック罫線の有無。 */
+var BOARD_N=0, BOARD_BLOCKS=true, cageSvg=null;
 function baseCls(i){
-  return 'cell'+(((i%9)%3===2&&i%9!==8)?' br':'')+(((((i/9)|0)%3===2)&&i<72)?' bb':'');
+  var n=BOARD_N, r=(i/n)|0, c=i%n, s='cell';
+  if(BOARD_BLOCKS){
+    if(c%3===2&&c!==n-1) s+=' br';
+    if(r%3===2&&r!==n-1) s+=' bb';
+  }
+  if(c===n-1) s+=' lastc';
+  if(r===n-1) s+=' lastr';
+  return s;
 }
-var cageSvg=null;
 function mkSvg(tag,attrs){
   var e=document.createElementNS('http://www.w3.org/2000/svg',tag),k;
   for(k in attrs) e.setAttribute(k,attrs[k]);
   return e;
 }
-(function build(){
-  for(var i=0;i<81;i++){
-    var d=document.createElement('div');
+/* 盤面と数字パッドを組み直す。同じ構成なら何もしない。 */
+function buildBoard(n,blocks){
+  if(BOARD_N===n&&BOARD_BLOCKS===blocks) return;
+  BOARD_N=n; BOARD_BLOCKS=blocks;
+  boardEl.innerHTML=''; padEl.innerHTML='';
+  boardEl.style.setProperty('--n',n);
+  boardEl.style.setProperty('--nc',n<=4?2:3);   /* メモの桁組み */
+  padEl.style.setProperty('--pn',n);
+  var i,d,b;
+  for(i=0;i<n*n;i++){
+    d=document.createElement('div');
     d.className=baseCls(i);
     (function(k){ d.addEventListener('pointerdown',function(){ sel=k; renderAll(); }); })(i);
     boardEl.appendChild(d);
   }
-  /* セル81個の“後ろ”に足す。children[0..80] はセルのままなので添字がずれない */
-  cageSvg=mkSvg('svg',{id:'cages',viewBox:'0 0 90 90'});
+  /* セルの“後ろ”に足す。children[0..n*n-1] はセルのままなので添字がずれない */
+  cageSvg=mkSvg('svg',{id:'cages',viewBox:'0 0 '+(n*10)+' '+(n*10)});
   boardEl.appendChild(cageSvg);
-  for(var n=1;n<=9;n++){
-    var b=document.createElement('button');
-    b.className='num'; b.textContent=n; b.dataset.n=n;
-    (function(v){ b.addEventListener('pointerdown',function(e){ e.preventDefault(); place(v); }); })(n);
+  for(i=1;i<=n;i++){
+    b=document.createElement('button');
+    b.className='num'; b.textContent=i; b.dataset.n=i;
+    (function(v){ b.addEventListener('pointerdown',function(e){ e.preventDefault(); place(v); }); })(i);
     padEl.appendChild(b);
   }
-})();
+}
+buildBoard(9,true);
 
 /* ケージの外周だけを点線で描く。隣が同じケージなら線を角まで伸ばして繋げる。 */
 var CAGE_LABEL={};
 function renderCages(){
   CAGE_LABEL={};
   while(cageSvg.firstChild) cageSvg.removeChild(cageSvg.firstChild);
+  boardEl.classList.toggle('haslabel', !!(S&&S.cages&&S.cages.length));
   if(!S||!S.cages||!S.cages.length) return;
-  var U=10, pad=1.35, gi,cg,inC,k,i,r,c,x0,y0,x1,y1,L,R,T,B,txt;
+  var n=BOARD_N, U=10, pad=1.35, gi,cg,inC,k,i,r,c,x0,y0,x1,y1,L,R,T,B,txt;
   function line(a,b,cc,d){ cageSvg.appendChild(mkSvg('line',{x1:a,y1:b,x2:cc,y2:d})); }
   for(gi=0;gi<S.cages.length;gi++){
     cg=S.cages[gi]; inC={};
     for(k=0;k<cg.c.length;k++) inC[cg.c[k]]=1;
     for(k=0;k<cg.c.length;k++){
-      i=cg.c[k]; r=(i/9)|0; c=i%9;
+      i=cg.c[k]; r=(i/n)|0; c=i%n;
       x0=c*U; y0=r*U; x1=x0+U; y1=y0+U;
-      L=(c>0&&inC[i-1]); R=(c<8&&inC[i+1]); T=(r>0&&inC[i-9]); B=(r<8&&inC[i+9]);
+      L=(c>0&&inC[i-1]); R=(c<n-1&&inC[i+1]); T=(r>0&&inC[i-n]); B=(r<n-1&&inC[i+n]);
       if(!T) line(x0+(L?0:pad), y0+pad, x1-(R?0:pad), y0+pad);
       if(!B) line(x0+(L?0:pad), y1-pad, x1-(R?0:pad), y1-pad);
       if(!L) line(x0+pad, y0+(T?0:pad), x0+pad, y1-(B?0:pad));
       if(!R) line(x1-pad, y0+(T?0:pad), x1-pad, y1-(B?0:pad));
     }
-    i=cg.c[0];                       /* 添字最小＝ケージの左上のマス */
-    CAGE_LABEL[i]=cg.s;
-    r=(i/9)|0; c=i%9;
-    txt=mkSvg('text',{x:c*U+pad+0.5, y:r*U+pad+2.7});
-    txt.textContent=cg.s;
+    i=cg.c[0];                       /* 添字最小＝枠の左上のマス */
+    CAGE_LABEL[i]=cageLabel(cg);
+    r=(i/n)|0; c=i%n;
+    txt=mkSvg('text',{x:c*U+pad+0.15, y:r*U+pad+1.55});
+    txt.textContent=CAGE_LABEL[i];
     cageSvg.appendChild(txt);
+    /* 「1296×」のような長いラベルがマスからはみ出さないよう、必要なときだけ詰める */
+    var room=U-pad*2-0.3;
+    if(txt.getComputedTextLength&&txt.getComputedTextLength()>room){
+      txt.setAttribute('textLength',room);
+      txt.setAttribute('lengthAdjust','spacingAndGlyphs');
+    }
   }
 }
+/* キラーは合計だけ、賢くなるパズルは「12×」のように演算子を添える */
+var OPSYM={'+':'+','-':'−','*':'×','/':'÷','=':''};
+function cageLabel(cg){ return cg.op ? (cg.v+OPSYM[cg.op]) : String(cg.s); }
 
 function renderAll(){
   if(!S) return;
   var bad=conflicts();
+  var n=S.n||9, NN=n*n, blocks=(S.game!=='p');
   var selV=sel>=0?S.board[sel]:0;
-  var sr=sel>=0?((sel/9)|0):-1, sc=sel>=0?(sel%9):-1, sb=sel>=0?boxOf(sel):-1;
-  var cells=boardEl.children,i,el,v,cls,n,h;
-  for(i=0;i<81;i++){
+  var sr=sel>=0?((sel/n)|0):-1, sc=sel>=0?(sel%n):-1, sb=(sel>=0&&blocks)?boxOf(sel):-1;
+  var cells=boardEl.children,i,el,v,cls,d,h;
+  for(i=0;i<NN;i++){
     el=cells[i]; v=S.board[i]; cls=baseCls(i);
     if(sel>=0){
-      if(((i/9)|0)===sr||i%9===sc||boxOf(i)===sb) cls+=' peer';
+      /* 賢くなるパズルは3×3ブロックが無いので、行と列だけを照らす */
+      if(((i/n)|0)===sr||i%n===sc||(blocks&&boxOf(i)===sb)) cls+=' peer';
       if(selV&&v===selV) cls+=' same';
       if(i===sel) cls+=' sel';
     }
@@ -1013,15 +1295,15 @@ function renderAll(){
     if(v) el.textContent=v;
     else if(S.notes[i]){
       h='<div class="notes">';
-      for(n=1;n<=9;n++) h+='<span>'+(((S.notes[i]>>n)&1)?n:'')+'</span>';
+      for(d=1;d<=n;d++) h+='<span>'+(((S.notes[i]>>d)&1)?d:'')+'</span>';
       el.innerHTML=h+'</div>';
     } else el.textContent='';
   }
-  var cnt=new Array(10).fill(0);
-  for(i=0;i<81;i++) if(S.board[i]) cnt[S.board[i]]++;
-  for(i=0;i<9;i++) padEl.children[i].classList.toggle('done',cnt[i+1]>=9);
+  var cnt=new Array(n+2).fill(0);
+  for(i=0;i<NN;i++) if(S.board[i]) cnt[S.board[i]]++;
+  for(i=0;i<n;i++) padEl.children[i].classList.toggle('done',cnt[i+1]>=n);
   document.getElementById('diffLbl').textContent=
-    (S.game==='k'?'キラー・':'')+curDiffList()[S.diff].n;
+    (S.game==='k'?'キラー・':S.game==='p'?'賢くなる・':'')+curDiffList()[S.diff].n;
   document.getElementById('missLbl').textContent=S.miss;
   var mb=document.getElementById('memoBtn');
   mb.classList.toggle('on',memo);
@@ -1113,7 +1395,7 @@ function fxStop(){
   fxP=[]; fxQ=[];
   if(fxG) fxG.clearRect(0,0,innerWidth,innerHeight);
   var cells=boardEl.children;
-  for(var i=0;i<81;i++) cells[i].style.animation='';
+  for(var i=0;i<cells.length;i++) if(cells[i].style) cells[i].style.animation='';
   boardEl.classList.remove('win');
 }
 
@@ -1121,11 +1403,17 @@ function fxStop(){
 function celebrate(){
   if(REDUCED) return;
   fxInit(); fxSize(); fxStop();
-  var cells=boardEl.children, i;
-  for(i=0;i<81;i++)
-    cells[i].style.animation='cellPop .5s ease-out '+(((i/9|0)+(i%9))*0.042).toFixed(3)+'s both';
+  var cells=boardEl.children, n=BOARD_N, NN=n*n, i;
+  var stagger=0.042*9/n;                       /* 盤面が小さくても波の長さを揃える */
+  for(i=0;i<NN;i++)
+    cells[i].style.animation='cellPop .5s ease-out '+(((i/n|0)+(i%n))*stagger).toFixed(3)+'s both';
   boardEl.classList.add('win');
-  setTimeout(function(){ for(var k=0;k<81;k++) cells[k].style.animation=''; },1800);
+  /* 1.8秒後に盤面が別サイズへ組み直されている可能性があるので、
+     その時点の子要素を数え直す（古いマス数を使うと undefined を触って落ちる） */
+  setTimeout(function(){
+    var cur=boardEl.children;
+    for(var k=0;k<cur.length;k++) if(cur[k].style) cur[k].style.animation='';
+  },1800);
 
   var t0=performance.now();
   function at(ms,fn){ fxQ.push({at:t0+ms, run:fn}); }
@@ -1160,13 +1448,14 @@ document.getElementById('againBtn').addEventListener('click',function(){
 var pickGame='n';
 var GAME_DESC={
   n:'答えは必ず1通り。解くのに必要な手筋を判定して盤面を選んでいます。',
-  k:'ヒント数字なし。点線のケージ内の合計だけが手がかりで、ケージ内に同じ数字は入りません。'
+  k:'ヒント数字なし。点線のケージ内の合計だけが手がかりで、ケージ内に同じ数字は入りません。',
+  p:'3×3ブロックは無く、各行・各列に1〜nを1回ずつ。枠の数字は「12×」なら中身をかけて12。枠の中は同じ数字が入ってもかまいません。'
 };
 function buildDiffList(){
   var dl=document.getElementById('diffList');
   dl.innerHTML='';
   document.getElementById('gameDesc').textContent=GAME_DESC[pickGame];
-  (pickGame==='k'?KDIFF:DIFF).forEach(function(spec,d){
+  (pickGame==='k'?KDIFF:pickGame==='p'?PDIFF:DIFF).forEach(function(spec,d){
     var b=document.createElement('button');
     b.className='dbtn';
     b.innerHTML=spec.n+'<small>'+spec.d+'</small>';
@@ -1177,7 +1466,9 @@ function buildDiffList(){
       document.getElementById('ovGen').classList.add('show');
       setTimeout(function(){
         var done=function(){ document.getElementById('ovGen').classList.remove('show'); };
-        if(g==='k') newKiller(d,done); else newGame(d,done);
+        if(g==='k') newKiller(d,done);
+        else if(g==='p') newKenKen(d,done);
+        else newGame(d,done);
       },30);
     });
     dl.appendChild(b);
@@ -1195,15 +1486,15 @@ Array.prototype.forEach.call(document.querySelectorAll('.gtab'),function(t){
 buildDiffList();
 document.addEventListener('keydown',function(e){
   if(!S) return;
-  if(e.key>='1'&&e.key<='9'){place(+e.key);e.preventDefault();return;}
+  if(e.key>='1'&&e.key<='9'&&+e.key<=(S.n||9)){place(+e.key);e.preventDefault();return;}
   if(e.key==='Backspace'||e.key==='Delete'||e.key==='0'){erase();e.preventDefault();return;}
   if(e.key==='n'||e.key==='N'){memo=!memo;renderAll();return;}
   if((e.key==='z'||e.key==='Z')&&(e.metaKey||e.ctrlKey)){undo();e.preventDefault();return;}
-  var map={ArrowLeft:-1,ArrowRight:1,ArrowUp:-9,ArrowDown:9};
+  var n=S.n||9, map={ArrowLeft:-1,ArrowRight:1,ArrowUp:-n,ArrowDown:n};
   if(map[e.key]!==undefined&&sel>=0){
-    var t=sel+map[e.key], r=(sel/9)|0;
-    if((e.key==='ArrowLeft'||e.key==='ArrowRight')&&((t/9)|0)!==r) t=sel;
-    if(t>=0&&t<81){sel=t;renderAll();}
+    var t=sel+map[e.key], r=(sel/n)|0;
+    if((e.key==='ArrowLeft'||e.key==='ArrowRight')&&((t/n)|0)!==r) t=sel;
+    if(t>=0&&t<n*n){sel=t;renderAll();}
     e.preventDefault();
   }
 });
