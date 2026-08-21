@@ -1586,7 +1586,9 @@ function place(n){
     if(S.board[sel]===n) S.board[sel]=0;
     else{
       S.board[sel]=n; S.notes[sel]=0;
-      if(conflicts()[sel]) S.miss++;
+      /* キラーは唯一解と照合してミス判定。{2,7}の入れ替えのように
+         規則上は通ってしまう誤答も、その場で検出する */
+      if(S.game==='k' ? n!==S.sol[sel] : conflicts()[sel]) S.miss++;
     }
   }
   after();
@@ -1746,6 +1748,12 @@ function renderAll(){
   if(!S) return;
   var bad=conflicts();
   var n=S.n||9, NN=n*n, isQ=(S.game==='q'), blocks=(S.game!=='p'&&!isQ);
+  /* キラーの赤表示は「答えと違うマス」。規則違反マークより正確で、
+     正しい数字が他マスの誤りのとばっちりで赤くなることも無い */
+  if(S.game==='k'&&S.sol){
+    bad={};
+    for(var bi=0;bi<NN;bi++) if(S.board[bi]&&S.board[bi]!==S.sol[bi]) bad[bi]=1;
+  }
   var dmax=dmaxOf();
   var selV=sel>=0?S.board[sel]:0;
   var sr=sel>=0?((sel/n)|0):-1, sc=sel>=0?(sel%n):-1, sb=(sel>=0&&blocks)?boxOf(sel):-1;
@@ -1926,7 +1934,7 @@ document.getElementById('againBtn').addEventListener('click',function(){
 var pickGame='n';
 var GAME_DESC={
   n:'答えは必ず1通り。解くのに必要な手筋を判定して盤面を選んでいます。',
-  k:'ヒント数字なし。点線のケージ内の合計だけが手がかりで、ケージ内に同じ数字は入りません。',
+  k:'ヒント数字なし。点線のケージ内の合計だけが手がかりで、ケージ内に同じ数字は入りません。答えと違う数字はその場で赤くなります。',
   p:'3×3ブロックは無く、各行・各列に1〜nを1回ずつ。枠の数字は「12×」なら中身をかけて12。枠の中は同じ数字が入ってもかまいません。',
   q:'黒マスの数字が、その右または下に続く白マスの合計。ひとつながりの白マスに同じ数字は入りません（1〜9）。'
 };
