@@ -17,6 +17,7 @@
   --btn:#ffffff; --btn-b:#cfc8ba; --accent:#2f6fd0; --muted:#7d776c;
   --cage:#8a7d63; --cagetxt:#6b5f47;
   --block:#413b33; --kclue:#f6f3ec; --kdiag:#8d8477;
+  --treasure:#e8b33c; --treasure-edge:#c08d1d;
   --shadow:0 2px 10px rgba(0,0,0,.10);
 }
 @media (prefers-color-scheme: dark){
@@ -27,6 +28,7 @@
   --btn:#222a35; --btn-b:#39414d; --accent:#6fa8ff; --muted:#8d98a8;
   --cage:#6d7889; --cagetxt:#98a3b5;
   --block:#04070b; --kclue:#dbe3ee; --kdiag:#5a6675;
+  --treasure:#d9a441; --treasure-edge:#a87c1c;
   --shadow:0 2px 12px rgba(0,0,0,.4);
 }
 }
@@ -54,11 +56,21 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
 /* ---- top bar ---- */
 #bar{display:flex;align-items:center;justify-content:space-between;width:var(--bs);gap:8px;
      font-size:clamp(13px,calc(var(--bs)*.042),20px);}
-#bar .stat{display:flex;gap:.9em;align-items:baseline;color:var(--muted);font-variant-numeric:tabular-nums;}
+#bar .stat{display:flex;gap:.9em;align-items:baseline;color:var(--muted);font-variant-numeric:tabular-nums;
+           white-space:nowrap;min-width:0;}
+/* 幅が足りないときは難易度名を省略表示して、バーが2行に折り返さないようにする */
+#bar .stat:first-child{overflow:hidden;text-overflow:ellipsis;display:block;}
 #bar .stat b{color:var(--fg);font-weight:600;}
-#newBtn{background:var(--btn);border:1px solid var(--btn-b);border-radius:10px;
-        padding:.42em .9em;font-size:1em;font-weight:600;box-shadow:var(--shadow);}
-#newBtn:active{transform:translateY(1px);}
+#newBtn,.mbtn{background:var(--btn);border:1px solid var(--btn-b);border-radius:10px;
+        padding:.42em .5em;font-size:.92em;font-weight:600;box-shadow:var(--shadow);white-space:nowrap;}
+#newBtn:active,.mbtn:active{transform:translateY(1px);}
+#barBtns{display:flex;gap:.35em;flex:0 0 auto;}
+.mbtn.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+.mbtn.cleared{opacity:.55;}
+/* 連戦の連続クリア数。数が増えるほど強調される */
+#streakLbl{color:var(--accent);font-weight:700;}
+#streakLbl.hot{color:#ff8c42;}
+#streakLbl.blaze{color:#ff4d4d;text-shadow:0 0 8px rgba(255,77,77,.55);}
 
 /* ---- board ---- */
 #board{
@@ -72,12 +84,64 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
    viewBox 座標のまま書けば自動で拡大縮小される。クリックは透過。 */
 #cages{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;}
 #cages line{stroke:var(--cage);stroke-width:.38;stroke-dasharray:1.8 1.5;stroke-linecap:round;}
+/* ---- 宝探し ----
+   3状態（未操作・開けた・塗った）を、明度と面の沈み方の両方で分ける。 */
+.cell.scpad,.cell.scedge{border:none;background:transparent;}
+.cell.scedge{color:var(--muted);font-weight:700;
+             font-size:calc(var(--bs)/var(--n)*.42);font-variant-numeric:tabular-nums;}
+.cell.scedge.sczero{color:var(--accent);}      /* 残り0＝強い手掛かり */
+.cell.scedge.scdone{color:var(--line);}        /* 確定済みの行・列は沈める */
+.cell.scplay{border:none;background:var(--btn);border-radius:3px;
+             box-shadow:0 1px 0 var(--btn-b);font-weight:700;
+             font-size:calc(var(--bs)/var(--n)*.46);}
+.cell.scplay.scopen{background:var(--peer);box-shadow:inset 0 1px 2px rgba(0,0,0,.10);}
+/* 見つけた宝は金色のマスに王冠。塗り潰しより「見つけた」感が出る。
+   王冠は SVG をそのまま背景にしているので、拡大しても崩れず再描画も軽い。 */
+.cell.scplay.scmark{
+  background-color:var(--treasure);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%234a3208' d='M2.6 8.4 7 11.8 12 4.9 17 11.8 21.4 8.4 19.6 17.4 4.4 17.4Z'/%3E%3Crect fill='%234a3208' x='4.2' y='18.8' width='15.6' height='2.6' rx='1.2'/%3E%3C/svg%3E");
+  background-repeat:no-repeat;background-position:center;background-size:60%;
+  box-shadow:inset 0 0 0 1px var(--treasure-edge);
+}
+.cell.scplay.err{background:var(--errbg)!important;box-shadow:inset 0 0 0 2px var(--err);}
+/* 周囲の数は個数で色を変える。多いほど赤に寄せて密度が伝わるようにする */
+.cell.scopen[data-nb="1"]{color:#3a6f88;}
+.cell.scopen[data-nb="2"]{color:#1f6f5c;}
+.cell.scopen[data-nb="3"]{color:#a06a1f;}
+.cell.scopen[data-nb="4"]{color:#a8443c;}
+.cell.scopen[data-nb="5"],.cell.scopen[data-nb="6"],
+.cell.scopen[data-nb="7"],.cell.scopen[data-nb="8"]{color:#74407e;}
+@media (prefers-color-scheme: dark){
+  .cell.scopen[data-nb="1"]{color:#7ab4cd;}
+  .cell.scopen[data-nb="2"]{color:#4fbfa0;}
+  .cell.scopen[data-nb="3"]{color:#d9a556;}
+  .cell.scopen[data-nb="4"]{color:#dd7168;}
+  .cell.scopen[data-nb="5"],.cell.scopen[data-nb="6"],
+  .cell.scopen[data-nb="7"],.cell.scopen[data-nb="8"]{color:#b98cc4;}
+}
+.num.scmode{aspect-ratio:auto;height:auto;padding:.7em 0;
+            font-size:clamp(15px,calc(var(--bs)*.05),22px);
+            display:flex;align-items:center;justify-content:center;gap:.4em;
+            white-space:nowrap;                       /* 「宝マーク」を折り返さない */
+            transition:background-color .1s,color .1s,box-shadow .1s,transform .06s;}
+/* 選択中のモードは沈んで見えるようにする（どちらが有効か一目で分かるように） */
+.num.scmode.on{background:var(--accent);border-color:var(--accent);color:#fff;
+               box-shadow:inset 0 2px 5px rgba(0,0,0,.28);}
+.num.scmode.on[data-mode="mark"]{background:var(--treasure);border-color:var(--treasure-edge);
+                                 color:#4a3208;}
+/* 押した瞬間の手応え */
+.num.scmode:active{transform:translateY(1px);box-shadow:inset 0 3px 6px rgba(0,0,0,.3);}
+.num.scmode:not(.on):active{background:var(--sel);}
+/* ボタン内の小さな王冠。盤面のマスと同じ絵柄にして対応が分かるようにする */
+.scmode .ic{width:1.15em;height:1.15em;flex:0 0 auto;}
+.scmode .ic path,.scmode .ic rect{fill:currentColor;}
+
 /* カックロの黒マスと、そこに入る2つのヒント */
 .cell.block{background:var(--block);}
 .cell.block.peer,.cell.block.sel{background:var(--block);}
 #cages line.kdiag{stroke:var(--kdiag);stroke-width:.3;stroke-dasharray:none;}
 #cages text.kclue{fill:var(--kclue);font-size:3.1px;font-weight:700;}
-#cages text{fill:var(--cagetxt);font-size:1.7px;font-weight:700;
+#cages text{fill:var(--cagetxt);font-size:2.15px;font-weight:700;
             font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;}
 .cell{
   position:relative; display:flex; align-items:center; justify-content:center;
@@ -106,8 +170,8 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
    .notes は絶対配置なので padding の影響を受けず、inset だけで位置が決まる。 */
 /* ずらすのはラベルのあるマスだけで足りるが、それだと数字の高さが不揃いになるので
    枠を使うゲームでは盤面全体を同じだけ下げて揃える。 */
-#board.haslabel .cell{padding-top:20%;}
-.cell.hassum .notes{inset:34% 5% 4% 5%;font-size:calc(var(--bs)/var(--n)*.19);}
+#board.haslabel .cell{padding-top:26%;}
+.cell.hassum .notes{inset:40% 5% 4% 5%;font-size:calc(var(--bs)/var(--n)*.175);}
 
 /* ---- number pad ---- */
 #pad{display:grid;grid-template-columns:repeat(var(--pn),minmax(0,1fr));gap:calc(var(--bs)*.014);width:var(--bs);}
@@ -151,9 +215,18 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
 .dbtn:active{transform:translateY(1px);}
 .dbtn.primary{background:var(--accent);border-color:var(--accent);color:#fff;}
 .dbtn small{display:block;font-weight:400;font-size:12px;opacity:.7;margin-top:3px;}
-#gameTabs{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin:14px 0 4px;}
+/* ルール説明。読み物なので行間を広めに、見出しで区切る */
+.rules{text-align:left;margin:10px 0 4px;}
+.rules h3{margin:14px 0 4px;font-size:13px;color:var(--accent);
+          letter-spacing:.04em;font-weight:700;}
+.rules p{margin:0 0 7px;font-size:13.5px;line-height:1.75;color:var(--muted);}
+.rules b{color:var(--fg);font-weight:700;}
+/* 宝探しのときは「メモ／消去／取り消し」を使わないので、ルールボタンに置き換える */
+#tools.sconly{grid-template-columns:1fr;}
+#tools.sconly #eraseBtn,#tools.sconly #undoBtn{display:none;}
+#gameTabs{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:14px 0 4px;}
 .gtab{background:var(--btn);border:1px solid var(--btn-b);border-radius:11px;
-      padding:11px 1px;font-size:13px;font-weight:600;}
+      padding:10px 1px;font-size:12.5px;font-weight:600;}
 .gtab.on{background:var(--accent);border-color:var(--accent);color:#fff;}
 #spin{font-size:16px;color:#fff;text-align:center;}
 
@@ -190,9 +263,14 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
 <div id="app">
   <div id="left">
     <div id="bar">
-      <div class="stat"><span id="diffLbl">ふつう</span></div>
+      <div class="stat"><span id="diffLbl">ふつう</span><span id="streakLbl"></span></div>
       <div class="stat"><span>ミス <b id="missLbl">0</b></span></div>
-      <button id="newBtn">新規</button>
+      <div id="barBtns">
+        <button id="dailyBtn" class="mbtn">日替</button>
+        <button id="streakBtn" class="mbtn">連戦</button>
+        <button id="resetBtn" class="mbtn">やり直し</button>
+        <button id="newBtn">新規</button>
+      </div>
     </div>
     <div id="board"></div>
   </div>
@@ -213,6 +291,7 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
     <button class="gtab" data-g="k">キラー</button>
     <button class="gtab" data-g="p">賢くなる</button>
     <button class="gtab" data-g="q">カックロ</button>
+    <button class="gtab" data-g="s">宝探し</button>
   </div>
   <p id="gameDesc"></p>
   <div id="diffList"></div>
@@ -224,6 +303,32 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
   <div class="big" id="winDiff">ふつう</div>
   <p id="winSub">ミス 0</p>
   <button class="dbtn primary" id="againBtn">もう一局</button>
+</div></div>
+
+<div class="ov" id="ovRule"><div class="card">
+  <h2>宝探しの遊びかた</h2>
+  <div class="rules">
+    <p>盤面のどこかに<b>宝</b>が隠れています。宝のマスには印をつけ、それ以外のマスはすべて掘り出せばクリアです。</p>
+    <h3>操作</h3>
+    <p>下の<b>「掘る」「宝マーク」</b>で、タップしたときの動作を切り替えます。<b>選ばれているほうが色つき</b>になります。<br>
+       マスを<b>長押し</b>すると、切り替えずに逆の操作ができます。</p>
+    <p>宝を見つけたマスは<b>金色になり王冠</b>が出ます。</p>
+    <h3>手がかりは2種類</h3>
+    <p><b>掘ったマスの数字</b>… そのマスの<b>周囲8マス</b>にある宝の数です。</p>
+    <p><b>盤面の上と左の数字</b>… その列・その行に<b>まだ見つかっていない宝の数</b>です。宝マークを付けるたびに減り、0になると緑色になります。</p>
+    <h3>間違えたとき</h3>
+    <p>宝のマスを掘る、または宝でないマスに印をつけると<b>ミス</b>が1増えます。盤面は変わらないので、正しいほうをやり直してください。</p>
+    <h3>運の要素はありません</h3>
+    <p>出題されるのは、この2種類の数字だけで<b>最初の一手から最後まで理詰めで解ける盤面</b>だけです。当てずっぽうが必要になる場面は来ません。迷ったら、残り0の行・列か、周囲の数字が小さいマスから見直してください。</p>
+  </div>
+  <button class="dbtn primary" id="ruleClose">閉じる</button>
+</div></div>
+
+<div class="ov" id="ovReset"><div class="card">
+  <h2>最初からやり直す</h2>
+  <p>同じ問題のまま、入力した数字とメモ、ミス数を消します。<br>新しい問題にはなりません。</p>
+  <button class="dbtn primary" id="resetYes">やり直す</button>
+  <button class="dbtn" id="resetNo">やめる</button>
 </div></div>
 
 <div class="ov" id="ovGen"><div id="spin"><span id="genLbl">盤面を厳選中…</span></div></div>
@@ -261,11 +366,20 @@ var QDIFF=[
   {n:'むずかしい', inner:7, den:0.14, minR:0.56, d:'8×8'},
   {n:'鬼',        inner:8, den:0.14, minR:0.50, d:'9×9'}
 ];
+/* 宝探し：inner=遊ぶ範囲の一辺（盤面は+1で欄外集計） / tg=宝の数
+   near=周囲ヒントを最低これだけ使う盤面に限る（行・列だけで解ける単調な盤面を除く） */
+var SDIFF=[
+  {n:'やさしい',   inner:6, tg:10, near:8,  d:'6×6・宝10個'},
+  {n:'ふつう',     inner:7, tg:15, near:14, d:'7×7・宝15個'},
+  {n:'むずかしい', inner:8, tg:20, near:24, d:'8×8・宝20個'},
+  {n:'鬼',        inner:9, tg:26, near:34, d:'9×9・宝26個'}
+];
 var GEN_BUDGET=6000;   /* 条件に合う盤面を探す上限時間(ms) */
 var KEY='sudoku.save.v1';
 function curDiffList(){
   if(!S) return DIFF;
-  return S.game==='k' ? KDIFF : S.game==='p' ? PDIFF : S.game==='q' ? QDIFF : DIFF;
+  return S.game==='k' ? KDIFF : S.game==='p' ? PDIFF : S.game==='q' ? QDIFF
+       : S.game==='s' ? SDIFF : DIFF;
 }
 
 /* ===== 生成 ===== */
@@ -781,7 +895,12 @@ var K45REGIONS=(function(){
   return regs;
 })();
 
-function killerHumanSolves(cages){
+/* no45=true なら45の法則を封印して解けるか試す。
+   「45封印では解けないが解禁すると解ける」盤面＝45の計算が攻略に不可欠な盤面。
+   KHS_STAT.fix45 に「45の法則で確定したマス数」が残る（検証用）。 */
+var KHS_STAT={fix45:0};
+function killerHumanSolves(cages,no45){
+  KHS_STAT.fix45=0;
   var cand=new Array(81), i, k, cellCage=new Int8Array(81);
   for(i=0;i<81;i++) cand[i]=0x3FE;
   for(i=0;i<cages.length;i++) for(k=0;k<cages[i].c.length;k++) cellCage[cages[i].c[k]]=i;
@@ -819,7 +938,7 @@ function killerHumanSolves(cages){
         if(cnt===1&&cand[at]!==m){ cand[at]=m; changed=true; }
       }
     }
-    for(var ri=0;ri<K45REGIONS.length;ri++){          /* 45の法則（innie/outie） */
+    for(var ri=0;ri<(no45?0:K45REGIONS.length);ri++){ /* 45の法則（innie/outie） */
       var rg=K45REGIONS[ri], inR=inReg[ri];
       var acc=0, open=[], counted={}, x, cg2;
       for(k=0;k<rg.cells.length;k++){
@@ -840,7 +959,7 @@ function killerHumanSolves(cages){
       if(open.length===1){
         var need=rg.sum-acc;
         if(need<1||need>9||!(cand[open[0]]&(1<<need))) return false;
-        if(cand[open[0]]!==(1<<need)){ cand[open[0]]=1<<need; changed=true; }
+        if(cand[open[0]]!==(1<<need)){ cand[open[0]]=1<<need; changed=true; KHS_STAT.fix45++; }
       }
     }
     if(!changed) break;
@@ -872,7 +991,7 @@ var KBUD=3000;      /* 1回の一意性判定に許すノード数 */
 /* 少しずつ進められる生成器。step(ms) は ms ミリ秒だけ作業を進め、
    未完成なら null、完成したら結果を返す。UI を固めないための分割実行用。 */
 function killerBuilder(maxS,maxMerge){
-  var sol=null, arr=null, pairs=null, redir=null, p=0, merges=0, bases=0, phase='base';
+  var sol=null, arr=null, pairs=null, redir=null, p=0, merges=0, bases=0, rejects=0, phase='base';
   function root(x){ while(redir[x]!==x) x=redir[x]; return x; }
   return {
     label:function(){ return phase==='base' ? '土台を作成中… '+bases+'回目' : 'ケージを併合中… '+merges+'個'; },
@@ -914,7 +1033,17 @@ function killerBuilder(maxS,maxMerge){
       if(phase!=='done') return null;
       var out=arr.filter(Boolean);
       out.sort(function(x,y){return x.c[0]-y.c[0];});
-      return {sol:sol, cages:out, merges:merges, bases:bases};
+      /* 仕上げの検品：45の法則（行・列・ブロック＝45の計算）が攻略に
+         不可欠な盤面だけを合格にする。組み合わせ計算だけで解けてしまう
+         盤面は捨てて作り直す（45の計算過程が必ず登場する保証）。 */
+      var ok45 = killerHumanSolves(out);
+      var fix45 = KHS_STAT.fix45;
+      if(!ok45 || killerHumanSolves(out,true)){
+        rejects++;
+        sol=null; arr=null; pairs=null; redir=null; p=0; merges=0; phase='base';
+        return null;
+      }
+      return {sol:sol, cages:out, merges:merges, bases:bases, rejects:rejects, fix45:fix45};
     }
   };
 }
@@ -1384,6 +1513,112 @@ function kakuroBuilder(inner,density,minRatio){
   };
 }
 
+/* ===== 宝探し（運の要素を排した論理パズル） =====
+   盤面は (inner+1)×(inner+1)。0行目と0列目は「その列・行に宝がいくつあるか」の
+   欄外集計に使い、残りが実際に遊ぶマス。
+   タップ＝掘る／宝マーク（モードで切替）。掘ったマスには周囲8マスの宝の数が出る。 */
+
+/* --- 当てずっぽう無しで解けるかを判定するソルバー ---
+   人間が実際に使える推理だけを回し、仮置きは一切しない。
+   R1 行・列の残数が0        → その行・列の未確定はすべて「掘る」
+   R2 行・列の残数＝未確定数 → その行・列の未確定はすべて「宝」
+   R3 掘ったマスの周囲、残り0        → 周囲の未確定はすべて「掘る」
+   R4 掘ったマスの周囲、残り＝未確定数→ 周囲の未確定はすべて「宝」
+   戻り値 solved=true なら、最初の一手から最後まで論理だけで到達できる。 */
+function scSolve(inner,target){
+  var NN=inner*inner, know=new Int8Array(NN); /* 0=未確定 1=掘る 2=宝 */
+  var rowTot=new Array(inner).fill(0), colTot=new Array(inner).fill(0), nb=new Int8Array(NN);
+  var r,c,i,dr,dc,rr,cc;
+  for(r=0;r<inner;r++) for(c=0;c<inner;c++){
+    i=r*inner+c;
+    if(target[i]){ rowTot[r]++; colTot[c]++; }
+  }
+  for(r=0;r<inner;r++) for(c=0;c<inner;c++){
+    var n=0;
+    for(dr=-1;dr<=1;dr++) for(dc=-1;dc<=1;dc++){
+      if(!dr&&!dc) continue;
+      rr=r+dr; cc=c+dc;
+      if(rr<0||rr>=inner||cc<0||cc>=inner) continue;
+      if(target[rr*inner+cc]) n++;
+    }
+    nb[r*inner+c]=n;
+  }
+  var used={line:0,near:0}, changed=true, guard=0;
+  function settle(i){ know[i]=target[i]?2:1; }
+  while(changed&&guard++<5000){
+    changed=false;
+    for(r=0;r<inner;r++){                          /* R1/R2 行 */
+      var unk=0, mk=0;
+      for(c=0;c<inner;c++){ i=r*inner+c; if(!know[i]) unk++; else if(know[i]===2) mk++; }
+      if(!unk) continue;
+      var rem=rowTot[r]-mk;
+      if(rem===0||rem===unk){
+        for(c=0;c<inner;c++){ i=r*inner+c; if(!know[i]){ settle(i); changed=true; used.line++; } }
+      }
+    }
+    for(c=0;c<inner;c++){                          /* R1/R2 列 */
+      var unk2=0, mk2=0;
+      for(r=0;r<inner;r++){ i=r*inner+c; if(!know[i]) unk2++; else if(know[i]===2) mk2++; }
+      if(!unk2) continue;
+      var rem2=colTot[c]-mk2;
+      if(rem2===0||rem2===unk2){
+        for(r=0;r<inner;r++){ i=r*inner+c; if(!know[i]){ settle(i); changed=true; used.line++; } }
+      }
+    }
+    for(r=0;r<inner;r++) for(c=0;c<inner;c++){     /* R3/R4 開けたマスの周囲 */
+      i=r*inner+c;
+      if(know[i]!==1) continue;                    /* 開けたマスだけがヒントを見せる */
+      var unk3=0, mk3=0;
+      for(dr=-1;dr<=1;dr++) for(dc=-1;dc<=1;dc++){
+        if(!dr&&!dc) continue;
+        rr=r+dr; cc=c+dc;
+        if(rr<0||rr>=inner||cc<0||cc>=inner) continue;
+        var j=rr*inner+cc;
+        if(!know[j]) unk3++; else if(know[j]===2) mk3++;
+      }
+      if(!unk3) continue;
+      var rem3=nb[i]-mk3;
+      if(rem3===0||rem3===unk3){
+        for(dr=-1;dr<=1;dr++) for(dc=-1;dc<=1;dc++){
+          if(!dr&&!dc) continue;
+          rr=r+dr; cc=c+dc;
+          if(rr<0||rr>=inner||cc<0||cc>=inner) continue;
+          var j2=rr*inner+cc;
+          if(!know[j2]){ settle(j2); changed=true; used.near++; }
+        }
+      }
+    }
+  }
+  var det=0;
+  for(i=0;i<NN;i++) if(know[i]) det++;
+  return {solved:det===NN, determined:det, total:NN, used:used,
+          rowTot:rowTot, colTot:colTot, nb:nb};
+}
+
+/* 盤面生成。ランダムに宝を置き、上のソルバーが全マス確定できたものだけ採用する。
+   行・列ヒントだけで機械的に埋まる単調な盤面を避けるため、周囲ヒントも
+   一定回数使われることを条件にしている。 */
+function scBuilder(inner,targets,minNear){
+  var tries=0;
+  return {
+    label:function(){ return '盤面を厳選中… '+tries+'回目'; },
+    step:function(ms){
+      var t0=Date.now(), NN=inner*inner;
+      while(Date.now()-t0<ms){
+        tries++;
+        var target=new Int8Array(NN), order=shuffle(idxN(NN)), i;
+        for(i=0;i<targets;i++) target[order[i]]=1;
+        var rep=scSolve(inner,target);
+        if(!rep.solved) continue;
+        if(rep.used.near<minNear) continue;
+        return {inner:inner, target:target, rowTot:rep.rowTot, colTot:rep.colTot,
+                nb:rep.nb, targets:targets, tries:tries, used:rep.used};
+      }
+      return null;
+    }
+  };
+}
+
 /* ===== 状態 ===== */
 var S=null, sel=-1, memo=false;
 
@@ -1394,12 +1629,13 @@ function newGame(d,onDone){
   var lbl=document.getElementById('genLbl');
   function step(){
     var chunk=Date.now();
-    while(Date.now()-chunk<70){
+    while(Date.now()-chunk<70){ if(DAILY_RNG){ var _k=Math.random; Math.random=DAILY_RNG; }
       tries++;
       var sol=generateFull(), puz=makePuzzle(sol,spec.c), g=humanSolve(puz);
       var lv=g.solved?g.lv:4;
       var score=(lv<spec.lo?spec.lo-lv:0)+(lv>spec.hi?lv-spec.hi:0);
       if(score<bestScore){ bestScore=score; best={sol:sol,puz:puz,lv:lv}; }
+      if(DAILY_RNG) Math.random=_k;
       if(!score||Date.now()-t0>GEN_BUDGET) break;
     }
     if(!bestScore||Date.now()-t0>GEN_BUDGET){ finish(); return; }
@@ -1423,7 +1659,7 @@ function newKiller(d,onDone){
   var spec=KDIFF[d], builder=killerBuilder(spec.maxS,spec.merges);
   var lbl=document.getElementById('genLbl');
   function step(){
-    var r=builder.step(70);
+    var r=withRng(function(){ return builder.step(70); });
     if(!r){
       if(lbl) lbl.textContent=builder.label();
       setTimeout(step,0);
@@ -1439,12 +1675,40 @@ function newKiller(d,onDone){
   step();
 }
 
+/* 宝探しの開局。数字を入れないので board/notes は使わず view を持つ。 */
+function newSquarecells(d,onDone){
+  var spec=SDIFF[d], builder=scBuilder(spec.inner,spec.tg,spec.near);
+  var lbl=document.getElementById('genLbl');
+  function step(){
+    var r=withRng(function(){ return builder.step(70); });
+    if(!r){ if(lbl) lbl.textContent=builder.label(); setTimeout(step,0); return; }
+    var N=r.inner+1, NN=N*N;
+    buildBoard(N,false,0);
+    S={game:'s', n:N, inner:r.inner, dmax:0, diff:d,
+       target:Array.prototype.slice.call(r.target),
+       nb:Array.prototype.slice.call(r.nb),
+       rowTot:r.rowTot, colTot:r.colTot, targets:r.targets,
+       view:new Array(NN).fill(0), lastMiss:-1,
+       given:new Array(NN).fill(false), board:new Array(NN).fill(0),
+       notes:new Array(NN).fill(0), undo:[], miss:0, done:false};
+    sel=-1; memo=false; scMode='open';
+    save(); renderCages(); renderAll();
+    if(onDone) onDone();
+    /* 初めて遊ぶときだけ、操作が分からないまま詰まらないようルールを開く */
+    if(!META.sawRule){
+      META.sawRule=1; metaSave();
+      setTimeout(function(){ document.getElementById('ovRule').classList.add('show'); },260);
+    }
+  }
+  step();
+}
+
 /* カックロの開局。黒マスとヒントを持つので状態の形が他ゲームと少し違う。 */
 function newKakuro(d,onDone){
   var spec=QDIFF[d], builder=kakuroBuilder(spec.inner,spec.den,spec.minR);
   var lbl=document.getElementById('genLbl');
   function step(){
-    var r=builder.step(70);
+    var r=withRng(function(){ return builder.step(70); });
     if(!r){ if(lbl) lbl.textContent=builder.label(); setTimeout(step,0); return; }
     var N=r.n, NN=N*N;
     buildBoard(N,false,9);
@@ -1463,7 +1727,7 @@ function newKenKen(d,onDone){
   var spec=PDIFF[d], builder=kkBuilder(spec.sz,spec.maxS,spec.mul);
   var lbl=document.getElementById('genLbl');
   function step(){
-    var r=builder.step(70);
+    var r=withRng(function(){ return builder.step(70); });
     if(!r){ if(lbl) lbl.textContent=builder.label(); setTimeout(step,0); return; }
     var NN=spec.sz*spec.sz;
     buildBoard(spec.sz,false,spec.sz);
@@ -1475,6 +1739,55 @@ function newKenKen(d,onDone){
   }
   step();
 }
+/* ===== モード（自由／日替わり／連戦） ===== */
+var META_KEY='sudoku.meta.v1';
+var MODE='free';                 /* free | daily | streak */
+var META={streak:0, best:0, daily:null};   /* daily = クリア済みの日付 */
+function metaSave(){ try{localStorage.setItem(META_KEY,JSON.stringify(META));}catch(e){} }
+function metaLoad(){
+  try{
+    var o=JSON.parse(localStorage.getItem(META_KEY));
+    if(o&&typeof o==='object'){
+      META.streak=o.streak||0; META.best=o.best||0; META.daily=o.daily||null;
+      META.sawRule=o.sawRule||0;
+    }
+  }catch(e){}
+}
+function todayKey(){
+  var d=new Date();
+  return d.getFullYear()+'-'+('0'+(d.getMonth()+1)).slice(-2)+'-'+('0'+d.getDate()).slice(-2);
+}
+/* 日付から決まる乱数。同じ日なら誰が開いても同じ盤面になる */
+function hashStr(s){
+  var h=2166136261, i;
+  for(i=0;i<s.length;i++){ h^=s.charCodeAt(i); h=Math.imul(h,16777619); }
+  return h>>>0;
+}
+function mulberry32(a){
+  return function(){
+    a|=0; a=a+0x6D2B79F5|0;
+    var t=Math.imul(a^a>>>15,1|a);
+    t=t+Math.imul(t^t>>>7,61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296;
+  };
+}
+/* 生成中だけ Math.random を差し替える。分割実行をまたいでも状態が続くので
+   途中で中断されても同じ盤面になる。 */
+var DAILY_RNG=null;
+function withRng(fn){
+  if(!DAILY_RNG) return fn();
+  var keep=Math.random;
+  Math.random=DAILY_RNG;
+  try{ return fn(); } finally{ Math.random=keep; }
+}
+/* その日のおすすめ（ゲーム種別と難易度）も日付から決める */
+var DAILY_POOL=[
+  {g:'n',d:2},{g:'k',d:1},{g:'p',d:1},{g:'q',d:1},{g:'s',d:1},
+  {g:'n',d:3},{g:'k',d:2},{g:'p',d:2},{g:'q',d:2},{g:'s',d:2},
+  {g:'n',d:4},{g:'k',d:0},{g:'p',d:3},{g:'q',d:0},{g:'s',d:3}
+];
+function dailyPick(){ return DAILY_POOL[hashStr('pick|'+todayKey())%DAILY_POOL.length]; }
+
 function save(){ if(S){ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} } }
 function load(){
   try{
@@ -1483,7 +1796,7 @@ function load(){
       var n=o.n||9;
       if(o.board.length!==n*n) return false;        /* 壊れたセーブは捨てる */
       S=o; S.undo=S.undo||[]; S.game=S.game||'n'; S.n=n;   /* 旧セーブは9×9の数独 */
-      buildBoard(n, S.game!=='p'&&S.game!=='q', S.dmax||n);
+      buildBoard(n, S.game!=='p'&&S.game!=='q'&&S.game!=='s', S.game==='s'?0:(S.dmax||n));
       return true;
     }
   }catch(e){}
@@ -1562,12 +1875,57 @@ function conflicts(){
 }
 function badCount(b){return Object.keys(b).length;}
 function isComplete(){
-  var NN=(S.n||9)*(S.n||9);
-  for(var i=0;i<NN;i++){
+  var NN=(S.n||9)*(S.n||9), i;
+  if(S.game==='s'){                          /* 宝探し：遊ぶマスが全部確定したら完成 */
+    for(i=0;i<NN;i++) if(scPlayable(i)&&!S.view[i]) return false;
+    return true;
+  }
+  for(i=0;i<NN;i++){
     if(S.block&&S.block[i]) continue;        /* 黒マスは埋める対象外 */
     if(!S.board[i]) return false;
   }
   return badCount(conflicts())===0;
+}
+
+/* ===== 宝探しの操作 ===== */
+/* 欄外（0行目・0列目）以外が遊ぶマス */
+function scPlayable(i){ var n=S.n; return ((i/n)|0)>0 && (i%n)>0; }
+/* 盤面インデックス → 遊ぶ範囲の通し番号 */
+function scInner(i){ var n=S.n; return (((i/n)|0)-1)*(n-1)+((i%n)-1); }
+var scMode='open';    /* タップしたときの動作。'open'=掘る / 'mark'=宝マーク */
+
+/* 1マスへの操作。act は 'open' か 'mark'。
+   正解と違えばミス。盤面は変えないので、正しい手を打ち直せばよい。 */
+function scAct(i,act){
+  if(!S||S.done||!scPlayable(i)||S.view[i]) return;
+  var isTarget=!!S.target[scInner(i)];
+  var wantTarget=(act==='mark');
+  if(wantTarget!==isTarget){
+    S.miss++; S.lastMiss=i;
+    save(); renderAll();
+    setTimeout(function(){ if(S&&S.lastMiss===i){ S.lastMiss=-1; renderAll(); } },380);
+    return;
+  }
+  S.lastMiss=-1;
+  S.view[i]=wantTarget?2:1;
+  save(); renderAll();
+  if(isComplete()) win();
+}
+/* その行・列に「あと何個の宝が残っているか」。見つけた分を引いて表示する */
+function scRowLeft(r){
+  var n=S.n, left=S.rowTot[r-1], c;
+  for(c=1;c<n;c++) if(S.view[r*n+c]===2) left--;
+  return left;
+}
+function scColLeft(c){
+  var n=S.n, left=S.colTot[c-1], r;
+  for(r=1;r<n;r++) if(S.view[r*n+c]===2) left--;
+  return left;
+}
+function scLineDone(kind,k){
+  var n=S.n, x;
+  for(x=1;x<n;x++) if(!S.view[kind==='r'?k*n+x:x*n+k]) return false;
+  return true;
 }
 function dmaxOf(){ return S.dmax||S.n||9; }
 /* 「置いた瞬間に唯一解と答え合わせする」ゲーム（キラー・賢くなる・カックロ）。
@@ -1609,14 +1967,31 @@ function undo(){
 }
 function after(){ renderAll(); save(); if(isComplete()) win(); }
 function win(){
-  S.done=true; save();
-  document.getElementById('winDiff').textContent=
-    (S.game==='k'?'キラー・':S.game==='p'?'賢くなる・':S.game==='q'?'カックロ・':'')+curDiffList()[S.diff].n;
-  document.getElementById('winSub').textContent='ミス '+S.miss;
+  S.done=true;
+  var lv=1, name=gameLabel()+curDiffList()[S.diff].n, sub='ミス '+S.miss;
+  if(MODE==='streak'){
+    META.streak++;
+    if(META.streak>META.best) META.best=META.streak;
+    metaSave();
+    lv=META.streak;                       /* 連続クリア数がそのまま演出の段階 */
+    name=META.streak+' 連勝';
+    sub=name0();
+  }else if(MODE==='daily'){
+    META.daily=todayKey(); metaSave();
+    name='本日のクリア';
+    sub=gameLabel()+curDiffList()[S.diff].n+' / ミス '+S.miss;
+  }
+  function name0(){ return gameLabel()+curDiffList()[S.diff].n+' / ミス '+S.miss
+                           +'（自己最高 '+META.best+'）'; }
+  save(); syncBar();
+  document.getElementById('winDiff').textContent=name;
+  document.getElementById('winSub').textContent=sub;
+  document.getElementById('againBtn').textContent=
+    MODE==='streak' ? '次の一局' : MODE==='daily' ? '閉じる' : 'もう一局';
   var ov=document.getElementById('ovWin');
   ov.classList.remove('lit');
   ov.classList.add('show'); ov.classList.add('fxon');
-  celebrate();
+  celebrate(lv);
   /* 暗幕は少し遅らせて、まず盤面と花火を見せる */
   if(REDUCED) ov.classList.add('lit');
   else setTimeout(function(){ ov.classList.add('lit'); },600);
@@ -1646,7 +2021,8 @@ function mkSvg(tag,attrs){
 /* pad=数字パッドのボタン数。カックロは盤面が11×11でも数字は1〜9なので分離する。 */
 var PAD_N=0;
 function buildBoard(n,blocks,pad){
-  pad=pad||n;
+  /* pad=0 は「数字パッドを出さない」という意味なので、|| で潰さないこと */
+  pad=(pad===undefined||pad===null)?n:pad;
   if(BOARD_N===n&&BOARD_BLOCKS===blocks&&PAD_N===pad) return;
   BOARD_N=n; BOARD_BLOCKS=blocks; PAD_N=pad;
   boardEl.innerHTML=''; padEl.innerHTML='';
@@ -1658,16 +2034,60 @@ function buildBoard(n,blocks,pad){
     d=document.createElement('div');
     d.className=baseCls(i);
     (function(k){
-      d.addEventListener('pointerdown',function(){
+      /* 宝探しは「選ぶ」のではなくタップで直接操作する。
+         iPad に右クリックが無いので、モード切替に加えて
+         長押し（450ms）で逆の操作もできるようにしている。 */
+      var lp=null, fired=false;
+      d.addEventListener('pointerdown',function(e){
+        if(S&&S.game==='s'){
+          if(!scPlayable(k)||S.view[k]) return;
+          e.preventDefault();
+          fired=false;
+          lp=setTimeout(function(){
+            fired=true; lp=null;
+            scAct(k, scMode==='open'?'mark':'open');   /* 長押しで逆の操作 */
+            /* 触覚フィードバックは iOS Safari が navigator.vibrate 未対応のため入れない。
+               代わりにマスの色がその場で変わることを手応えとしている。 */
+          },450);
+          return;
+        }
         if(S&&S.block&&S.block[k]) return;       /* 黒マスは選べない */
         sel=k; renderAll();
       });
+      d.addEventListener('pointerup',function(e){
+        if(!S||S.game!=='s') return;
+        if(lp){ clearTimeout(lp); lp=null; }
+        if(fired){ fired=false; return; }        /* 長押しで処理済み */
+        if(!scPlayable(k)||S.view[k]) return;
+        e.preventDefault();
+        scAct(k,scMode);
+      });
+      d.addEventListener('pointercancel',function(){ if(lp){ clearTimeout(lp); lp=null; } });
+      d.addEventListener('pointerleave',function(){ if(lp){ clearTimeout(lp); lp=null; } });
+      d.addEventListener('contextmenu',function(e){ e.preventDefault(); });
     })(i);
     boardEl.appendChild(d);
   }
   /* セルの“後ろ”に足す。children[0..n*n-1] はセルのままなので添字がずれない */
   cageSvg=mkSvg('svg',{id:'cages',viewBox:'0 0 '+(n*10)+' '+(n*10)});
   boardEl.appendChild(cageSvg);
+  if(pad===0){
+    /* 宝探しは数字を入れないので、パッドの代わりにモード切替を置く */
+    padEl.style.setProperty('--pn',2);
+    var CROWN='<svg class="ic" viewBox="0 0 24 24" aria-hidden="true">'
+             +'<path d="M2.6 8.4 7 11.8 12 4.9 17 11.8 21.4 8.4 19.6 17.4 4.4 17.4Z"/>'
+             +'<rect x="4.2" y="18.8" width="15.6" height="2.6" rx="1.2"/></svg>';
+    [['open','掘る',''],['mark','宝マーク',CROWN]].forEach(function(m){
+      var mb=document.createElement('button');
+      mb.className='num scmode'; mb.dataset.mode=m[0];
+      mb.innerHTML=m[2]+'<span>'+m[1]+'</span>';
+      mb.addEventListener('pointerdown',function(e){
+        e.preventDefault(); scMode=m[0]; renderAll();
+      });
+      padEl.appendChild(mb);
+    });
+    return;
+  }
   for(i=1;i<=pad;i++){
     b=document.createElement('button');
     b.className='num'; b.textContent=i; b.dataset.n=i;
@@ -1702,7 +2122,7 @@ function renderCages(){
     i=cg.c[0];                       /* 添字最小＝枠の左上のマス */
     CAGE_LABEL[i]=cageLabel(cg);
     r=(i/n)|0; c=i%n;
-    txt=mkSvg('text',{x:c*U+pad+0.15, y:r*U+pad+1.55});
+    txt=mkSvg('text',{x:c*U+pad+0.15, y:r*U+pad+1.75});
     txt.textContent=CAGE_LABEL[i];
     cageSvg.appendChild(txt);
     /* 「1296×」のような長いラベルがマスからはみ出さないよう、必要なときだけ詰める */
@@ -1747,8 +2167,54 @@ function renderKakuro(){
 var OPSYM={'+':'+','-':'−','*':'×','/':'÷','=':''};
 function cageLabel(cg){ return cg.op ? (cg.v+OPSYM[cg.op]) : String(cg.s); }
 
+/* 宝探しの描画。0行目・0列目は欄外集計、それ以外が遊ぶマス。 */
+function renderSquarecells(){
+  var n=S.n, NN=n*n, cells=boardEl.children, i, el, cls, r, c, left;
+  for(i=0;i<NN;i++){
+    el=cells[i]; r=(i/n)|0; c=i%n;
+    if(r===0&&c===0){ el.className='cell scpad'; el.textContent=''; continue; }
+    if(r===0||c===0){                                   /* 欄外の残数 */
+      left = r===0 ? scColLeft(c) : scRowLeft(r);
+      var done = r===0 ? scLineDone('c',c) : scLineDone('r',r);
+      el.className='cell scedge'+(done?' scdone':left===0?' sczero':'');
+      el.textContent=left;
+      continue;
+    }
+    cls='cell scplay';
+    if(S.view[i]===2) cls+=' scmark';
+    else if(S.view[i]===1) cls+=' scopen';
+    if(S.lastMiss===i) cls+=' err';
+    el.className=cls;
+    if(S.view[i]===1){
+      var nbv=S.nb[scInner(i)];
+      el.textContent=nbv>0?nbv:'';
+      el.dataset.nb=nbv;
+    }else{ el.textContent=''; el.dataset.nb=''; }
+  }
+  /* モード切替の見た目 */
+  for(i=0;i<padEl.children.length;i++){
+    var mb=padEl.children[i];
+    mb.classList.toggle('on', mb.dataset.mode===scMode);
+  }
+  var marked=0, opened=0, tot=S.targets, blanks=(n-1)*(n-1)-tot;
+  for(i=0;i<NN;i++){ if(!scPlayable(i)) continue;
+    if(S.view[i]===2) marked++; else if(S.view[i]===1) opened++; }
+  /* 上部バーは幅が限られるので、進捗は「塗り」だけを出す。
+     掘った数は盤面を見れば分かるうえ、宝の残りのほうが手掛かりとして重要。 */
+  document.getElementById('diffLbl').textContent=
+    curDiffList()[S.diff].n+' 宝'+marked+'/'+tot;
+  document.getElementById('missLbl').textContent=S.miss;
+  /* 宝探しではメモ・消去・取り消しを使わないので、ルールボタンに置き換える */
+  var mbtn=document.getElementById('memoBtn');
+  mbtn.classList.remove('on');
+  mbtn.firstChild.nodeValue='ルール ';
+  mbtn.querySelector('.tag').textContent='遊びかた';
+  document.getElementById('tools').classList.add('sconly');
+}
+
 function renderAll(){
   if(!S) return;
+  if(S.game==='s'){ renderSquarecells(); return; }
   var bad=conflicts();
   var n=S.n||9, NN=n*n, isQ=(S.game==='q'), blocks=(S.game!=='p'&&!isQ);
   /* キラー・賢くなる・カックロの赤表示は「答えと違うマス」。規則違反マークより
@@ -1792,9 +2258,11 @@ function renderAll(){
     for(i=0;i<PAD_N;i++) padEl.children[i].classList.toggle('done',cnt[i+1]>=n);
   }
   document.getElementById('diffLbl').textContent=
-    (S.game==='k'?'キラー・':S.game==='p'?'賢くなる・':S.game==='q'?'カックロ・':'')+curDiffList()[S.diff].n;
+    gameLabel()+curDiffList()[S.diff].n;
   document.getElementById('missLbl').textContent=S.miss;
   var mb=document.getElementById('memoBtn');
+  mb.firstChild.nodeValue='メモ ';                       /* 宝探しから戻ったとき用 */
+  document.getElementById('tools').classList.remove('sconly');
   mb.classList.toggle('on',memo);
   mb.querySelector('.tag').textContent=memo?'ON':'OFF';
 }
@@ -1803,6 +2271,7 @@ function renderAll(){
    #ovWin の中にキャンバスを敷き、暗幕とカードより後ろ・盤面より前で描く。 */
 var FXC=['#ffd166','#ef476f','#06d6a0','#4cc9f0','#f78c6b','#c77dff','#ffe66d'];
 var fxCv=null, fxG=null, fxP=[], fxQ=[], fxRaf=0, fxLast=0;
+var FX_MAX=700;   /* 同時表示の上限。段階を上げてもフレーム落ちさせない */
 var REDUCED = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
 
 function fxInit(){
@@ -1822,6 +2291,7 @@ function fxSize(){
 function fxColor(){ return FXC[(Math.random()*FXC.length)|0]; }
 
 function fxBurst(x,y){                       /* 花火：一点から放射状に */
+  if(fxP.length>FX_MAX) return;
   var n=48, col=fxColor(), i,a,sp;
   for(i=0;i<n;i++){
     a=Math.PI*2*i/n + Math.random()*0.14;
@@ -1832,6 +2302,7 @@ function fxBurst(x,y){                       /* 花火：一点から放射状�
   }
 }
 function fxRain(n){                          /* 紙吹雪：上から降らせる */
+  if(fxP.length>FX_MAX) return;
   for(var i=0;i<n;i++)
     fxP.push({t:'c', x:Math.random()*innerWidth, y:-24-Math.random()*innerHeight*0.6,
               vx:(Math.random()-0.5)*70, vy:70+Math.random()*95, g:55,
@@ -1840,6 +2311,7 @@ function fxRain(n){                          /* 紙吹雪：上から降らせ�
               rot:Math.random()*6.28, vrot:(Math.random()-0.5)*10});
 }
 function fxCannon(dir){                      /* クラッカー：画面下の左右から噴き上げ */
+  if(fxP.length>FX_MAX) return;
   var x = dir>0 ? -12 : innerWidth+12;
   for(var i=0;i<46;i++)
     fxP.push({t:'c', x:x, y:innerHeight*0.9,
@@ -1889,8 +2361,11 @@ function fxStop(){
 }
 
 /* 盤面のウェーブ → クラッカー → 花火と紙吹雪 */
-function celebrate(){
+/* lv=演出の段階。連戦の連続クリア数で 1→8 と派手になる。
+   粒子数の上限を決めてあるので、段階を上げてもフレーム落ちしない。 */
+function celebrate(lv){
   if(REDUCED) return;
+  lv=Math.max(1,Math.min(8,lv||1));
   fxInit(); fxSize(); fxStop();
   var cells=boardEl.children, n=BOARD_N, NN=n*n, i;
   var stagger=0.042*9/n;                       /* 盤面が小さくても波の長さを揃える */
@@ -1906,14 +2381,28 @@ function celebrate(){
 
   var t0=performance.now();
   function at(ms,fn){ fxQ.push({at:t0+ms, run:fn}); }
-  at(240,function(){ fxCannon(1); fxCannon(-1); });
-  at(300,function(){ fxRain(70); });
-  at(1000,function(){ fxRain(55); });
-  [520,980,1460,2050,2700,3350].forEach(function(ms){
-    at(ms,function(){
-      fxBurst(innerWidth*(0.16+Math.random()*0.68), innerHeight*(0.14+Math.random()*0.4));
+  /* 段階が上がるほど：クラッカーの回数、紙吹雪の量、花火の発数が増える */
+  var cannonSets=1+Math.floor((lv-1)/2);            /* 1〜4 セット（左右で2発ずつ） */
+  var rain1=60+18*(lv-1), rain2=45+14*(lv-1);       /* 紙吹雪 */
+  var shots=5+2*(lv-1);                             /* 花火の発数 5〜19 */
+  for(var s=0;s<cannonSets;s++)
+    at(240+s*420,(function(){ return function(){ fxCannon(1); fxCannon(-1); }; })());
+  at(300,function(){ fxRain(rain1); });
+  at(1000,function(){ fxRain(rain2); });
+  for(var q=0;q<shots;q++){
+    at(520+q*(lv>=5?300:430),function(){
+      fxBurst(innerWidth*(0.14+Math.random()*0.72), innerHeight*(0.12+Math.random()*0.44));
     });
-  });
+  }
+  if(lv>=4) at(560,function(){ fxBurst(innerWidth*0.5, innerHeight*0.3); });   /* 中央に大玉 */
+  if(lv>=6){                                        /* 左右同時の連打 */
+    [900,1500,2100].forEach(function(ms){
+      at(ms,function(){
+        fxBurst(innerWidth*0.22, innerHeight*(0.18+Math.random()*0.3));
+        fxBurst(innerWidth*0.78, innerHeight*(0.18+Math.random()*0.3));
+      });
+    });
+  }
   fxQ.sort(function(a,b){return a.at-b.at;});
   fxLast=performance.now();
   fxRaf=requestAnimationFrame(fxLoop);
@@ -1923,29 +2412,140 @@ function celebrate(){
 document.addEventListener('visibilitychange',function(){ if(document.hidden) save(); });
 
 /* ===== UI ===== */
-document.getElementById('memoBtn').addEventListener('click',function(){memo=!memo;renderAll();});
+document.getElementById('memoBtn').addEventListener('click',function(){
+  if(S&&S.game==='s'){ document.getElementById('ovRule').classList.add('show'); return; }
+  memo=!memo; renderAll();
+});
+document.getElementById('ruleClose').addEventListener('click',function(){
+  document.getElementById('ovRule').classList.remove('show');
+});
 document.getElementById('eraseBtn').addEventListener('click',erase);
 document.getElementById('undoBtn').addEventListener('click',undo);
+/* 同じ問題をやり直す。最初から入っていたヒント数字（数独）は残し、
+   自分で入れた数字・メモ・ミス数だけを消す。盤面そのものは作り直さない。 */
+function restartPuzzle(){
+  if(!S) return;
+  var NN=S.n*S.n, i;
+  if(S.game==='s'){
+    for(i=0;i<NN;i++) S.view[i]=0;
+    S.lastMiss=-1;
+  }else{
+    for(i=0;i<NN;i++){
+      S.board[i] = S.given[i] ? S.sol[i] : 0;
+      S.notes[i] = 0;
+    }
+  }
+  S.undo=[]; S.miss=0; S.done=false;
+  sel=-1; memo=false;
+  fxStop();
+  var ow=document.getElementById('ovWin');
+  ow.classList.remove('show'); ow.classList.remove('fxon'); ow.classList.remove('lit');
+  save(); renderCages(); renderAll(); syncBar();
+}
+function hasProgress(){
+  if(!S) return false;
+  var NN=S.n*S.n;
+  if(S.game==='s'){
+    for(var q=0;q<NN;q++) if(S.view[q]) return true;
+    return S.miss>0;
+  }
+  for(var i=0;i<NN;i++){
+    if(S.notes[i]) return true;
+    if(!S.given[i]&&S.board[i]) return true;
+  }
+  return false;
+}
+document.getElementById('resetBtn').addEventListener('click',function(){
+  if(!S) return;
+  if(!hasProgress()){ restartPuzzle(); return; }   /* 消すものが無ければ確認不要 */
+  document.getElementById('ovReset').classList.add('show');
+});
+document.getElementById('resetYes').addEventListener('click',function(){
+  document.getElementById('ovReset').classList.remove('show');
+  restartPuzzle();
+});
+document.getElementById('resetNo').addEventListener('click',function(){
+  document.getElementById('ovReset').classList.remove('show');
+});
 document.getElementById('newBtn').addEventListener('click',function(){document.getElementById('ovNew').classList.add('show');});
 document.getElementById('cancelNew').addEventListener('click',function(){document.getElementById('ovNew').classList.remove('show');});
 document.getElementById('againBtn').addEventListener('click',function(){
   var ov=document.getElementById('ovWin');
   fxStop();
   ov.classList.remove('show'); ov.classList.remove('fxon'); ov.classList.remove('lit');
+  if(MODE==='streak'){ startStreakGame(); return; }   /* 連戦は止まらず次の一局へ */
+  if(MODE==='daily'){ setMode('free'); return; }      /* 日替わりは1日1局 */
   document.getElementById('ovNew').classList.add('show');
+});
+
+/* ===== モードの操作 ===== */
+function gameLabel(){
+  return S.game==='k'?'キラー・':S.game==='p'?'賢くなる・':S.game==='q'?'カックロ・'
+       :S.game==='s'?'宝探し・':'数独・';
+}
+function syncBar(){
+  var sl=document.getElementById('streakLbl');
+  var db=document.getElementById('dailyBtn'), sb=document.getElementById('streakBtn');
+  db.classList.toggle('on',MODE==='daily');
+  sb.classList.toggle('on',MODE==='streak');
+  db.classList.toggle('cleared',META.daily===todayKey());
+  if(MODE==='streak'){
+    sl.textContent=' 🔥'+META.streak;
+    sl.className=META.streak>=6?'blaze':META.streak>=3?'hot':'';
+  }else sl.textContent='';
+}
+function beginGame(g,d,onDone){
+  var done=function(){ document.getElementById('ovGen').classList.remove('show'); syncBar(); if(onDone) onDone(); };
+  document.getElementById('genLbl').textContent='盤面を厳選中…';
+  document.getElementById('ovGen').classList.add('show');
+  setTimeout(function(){
+    if(g==='k') newKiller(d,done);
+    else if(g==='p') newKenKen(d,done);
+    else if(g==='q') newKakuro(d,done);
+    else if(g==='s') newSquarecells(d,done);
+    else newGame(d,done);
+  },30);
+}
+function setMode(m){
+  if(MODE==='streak'&&m!=='streak'){ META.streak=0; metaSave(); }
+  MODE=m; syncBar();
+}
+/* 連戦：ゲーム種別と難易度を巡回させ、連勝が伸びるほど難しくする */
+var STREAK_POOL=[['n',1],['k',0],['p',1],['q',0],['s',0],['n',2],['k',1],['p',2],['q',1],['s',1],
+                 ['n',3],['k',2],['p',3],['q',2],['s',2],['n',4],['k',3],['q',3],['s',3]];
+function startStreakGame(){
+  var idx=Math.min(META.streak,STREAK_POOL.length-1);
+  var pick=STREAK_POOL[idx];
+  DAILY_RNG=null;
+  beginGame(pick[0],pick[1]);
+}
+document.getElementById('streakBtn').addEventListener('click',function(){
+  if(MODE==='streak'){ setMode('free'); return; }
+  setMode('streak');
+  META.streak=0; metaSave(); syncBar();
+  startStreakGame();
+});
+document.getElementById('dailyBtn').addEventListener('click',function(){
+  if(MODE==='daily'){ setMode('free'); return; }
+  setMode('daily');
+  var pick=dailyPick();
+  DAILY_RNG=mulberry32(hashStr('board|'+todayKey()));
+  beginGame(pick.g,pick.d,function(){ DAILY_RNG=null; });
 });
 var pickGame='n';
 var GAME_DESC={
   n:'答えは必ず1通り。解くのに必要な手筋を判定して盤面を選んでいます。',
   k:'ヒント数字なし。点線のケージ内の合計だけが手がかりで、ケージ内に同じ数字は入りません。答えと違う数字はその場で赤くなります。',
   p:'3×3ブロックは無く、各行・各列に1〜nを1回ずつ。枠の数字は「12×」なら中身をかけて12。枠の中は同じ数字が入ってもかまいません。答えと違う数字はその場で赤くなります。',
-  q:'黒マスの数字が、その右または下に続く白マスの合計。ひとつながりの白マスに同じ数字は入りません（1〜9）。答えと違う数字はその場で赤くなります。'
+  q:'黒マスの数字が、その右または下に続く白マスの合計。ひとつながりの白マスに同じ数字は入りません（1〜9）。答えと違う数字はその場で赤くなります。',
+  s:'盤面に隠れた宝をすべて見つけます。運の要素はなく、数字だけで全マスが理詰めで決まります。ルールは対局中の「ルール」ボタンからいつでも読めます。'
 };
 function buildDiffList(){
   var dl=document.getElementById('diffList');
   dl.innerHTML='';
   document.getElementById('gameDesc').textContent=GAME_DESC[pickGame];
-  (pickGame==='k'?KDIFF:pickGame==='p'?PDIFF:pickGame==='q'?QDIFF:DIFF).forEach(function(spec,d){
+  (pickGame==='k'?KDIFF:pickGame==='p'?PDIFF:pickGame==='q'?QDIFF:pickGame==='s'?SDIFF:DIFF)
+    .forEach(function(spec,d){
     var b=document.createElement('button');
     b.className='dbtn';
     b.innerHTML=spec.n+'<small>'+spec.d+'</small>';
@@ -1959,6 +2559,7 @@ function buildDiffList(){
         if(g==='k') newKiller(d,done);
         else if(g==='p') newKenKen(d,done);
         else if(g==='q') newKakuro(d,done);
+        else if(g==='s') newSquarecells(d,done);
         else newGame(d,done);
       },30);
     });
@@ -1992,6 +2593,7 @@ document.addEventListener('keydown',function(e){
 document.addEventListener('gesturestart',function(e){e.preventDefault();});
 
 /* ===== 起動 ===== */
+metaLoad(); syncBar();
 if(load()){
   pickGame=S.game;
   Array.prototype.forEach.call(document.querySelectorAll('.gtab'),function(x){
