@@ -84,6 +84,42 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
    viewBox 座標のまま書けば自動で拡大縮小される。クリックは透過。 */
 #cages{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:2;}
 #cages line{stroke:var(--cage);stroke-width:.38;stroke-dasharray:1.8 1.5;stroke-linecap:round;}
+/* 立体表示。縦横比は描画側の計算と合わせてある */
+#cityCv{display:block;width:100%;height:auto;aspect-ratio:1/0.82;
+        border-radius:8px;background:var(--panel);margin:6px 0 4px;}
+#ovCity .card p{margin:6px 0 14px;}
+#cityCv{touch-action:none;cursor:grab;}
+#cityCv:active{cursor:grabbing;}
+#cityCtl,#sideCtl{display:flex;align-items:center;justify-content:center;gap:10px;margin:2px 0 0;}
+#cityMode{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin:2px 0 6px;}
+.mdb{background:var(--btn);border:1px solid var(--btn-b);border-radius:9px;
+     padding:.5em 0;font-size:13px;font-weight:600;color:var(--fg);box-shadow:var(--shadow);}
+.mdb.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+.mdb:active{transform:translateY(1px);}
+#sideCtl .mdb{padding:.45em 1em;}
+#cityHint{font-size:12px;color:var(--muted);}
+.rotb{background:var(--btn);border:1px solid var(--btn-b);border-radius:9px;
+      width:2.4em;height:2.1em;font-size:16px;line-height:1;color:var(--fg);
+      box-shadow:var(--shadow);}
+.rotb:active{transform:translateY(1px);background:var(--sel);}
+/* ビルのときはツール列を4つにしてギブアップを置く */
+#tools.ybld{grid-template-columns:repeat(4,1fr);}
+#tools.ybld .tool{font-size:clamp(11px,calc(var(--bs)*.036),15px);}
+
+/* ---- ビルディングパズル ----
+   外周のヒント枠は盤面の外にある情報なので、罫線を消して地の色に沈める。
+   遊ぶマスだけが「盤面」に見えるようにするのが狙い。 */
+.cell.skyedge{border:none;background:transparent;color:var(--accent);font-weight:700;
+              font-size:calc(var(--bs)/var(--n)*.44);font-variant-numeric:tabular-nums;}
+.cell.skyempty{color:transparent;}
+.cell.skycell{border:none;background:var(--panel);border-radius:2px;
+              box-shadow:inset 0 0 0 1px var(--line);
+              font-size:calc(var(--bs)/var(--n)*.52);font-weight:600;color:var(--user);}
+.cell.skycell.peer{background:var(--peer);}
+.cell.skycell.same{background:var(--same);}
+.cell.skycell.sel{background:var(--sel);box-shadow:inset 0 0 0 2px var(--accent);}
+.cell.skycell.err{background:var(--errbg);color:var(--err);}
+
 /* ---- 宝探し ----
    3状態（未操作・開けた・塗った）を、明度と面の沈み方の両方で分ける。 */
 .cell.scpad,.cell.scedge{border:none;background:transparent;}
@@ -225,6 +261,7 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
 #tools.sconly{grid-template-columns:1fr;}
 #tools.sconly #eraseBtn,#tools.sconly #undoBtn{display:none;}
 #gameTabs{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:14px 0 4px;}
+/* 6ゲームなので3列×2段。1段に詰めると文字が潰れる */
 .gtab{background:var(--btn);border:1px solid var(--btn-b);border-radius:11px;
       padding:10px 1px;font-size:12.5px;font-weight:600;}
 .gtab.on{background:var(--accent);border-color:var(--accent);color:#fff;}
@@ -236,6 +273,25 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
 #ovWin{background:rgba(0,0,0,0);backdrop-filter:none;transition:background-color .8s ease;}
 #ovWin.lit{background:rgba(0,0,0,.55);backdrop-filter:blur(3px);}
 #ovWin .card{position:relative;}
+/* パーフェクト（ノーミス）のクリア画面。金の縁取りで別格に見せる */
+#ovWin.perfect .card{
+  box-shadow:0 0 0 2px var(--treasure), 0 0 34px 6px rgba(232,179,60,.45),
+             0 12px 40px rgba(0,0,0,.4);
+}
+#ovWin.perfect #winTitle{
+  color:var(--treasure);
+  letter-spacing:.02em;
+  text-shadow:0 0 18px rgba(232,179,60,.55);
+}
+#ovWin.perfect #winTitle::before{content:'★ ';}
+#ovWin.perfect #winTitle::after{content:' ★';}
+@media (prefers-reduced-motion: no-preference){
+  #ovWin.perfect #winTitle{animation:perfectPulse 1.6s ease-in-out 3;}
+}
+@keyframes perfectPulse{
+  0%,100%{text-shadow:0 0 18px rgba(232,179,60,.55);}
+  50%    {text-shadow:0 0 30px rgba(232,179,60,.95);}
+}
 #ovWin.fxon .card{animation:cardIn .55s cubic-bezier(.2,1.5,.4,1) .85s both;}
 @keyframes cardIn{
   from{opacity:0;transform:translateY(28px) scale(.86);}
@@ -268,6 +324,7 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
       <div id="barBtns">
         <button id="dailyBtn" class="mbtn">日替</button>
         <button id="streakBtn" class="mbtn">連戦</button>
+        <button id="helpBtn" class="mbtn" style="display:none">?</button>
         <button id="resetBtn" class="mbtn">やり直し</button>
         <button id="newBtn">新規</button>
       </div>
@@ -280,6 +337,7 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
       <button class="tool" id="memoBtn">メモ <span class="tag">OFF</span></button>
       <button class="tool" id="eraseBtn">消去</button>
       <button class="tool" id="undoBtn">取り消し</button>
+      <button class="tool" id="giveBtn" style="display:none">答えを見る</button>
     </div>
   </div>
 </div>
@@ -292,6 +350,7 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
     <button class="gtab" data-g="p">賢くなる</button>
     <button class="gtab" data-g="q">カックロ</button>
     <button class="gtab" data-g="s">宝探し</button>
+    <button class="gtab" data-g="y">ビル</button>
   </div>
   <p id="gameDesc"></p>
   <div id="diffList"></div>
@@ -299,15 +358,44 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
 </div></div>
 
 <div class="ov" id="ovWin"><div class="card">
-  <h2>クリア！</h2>
+  <h2 id="winTitle">クリア！</h2>
   <div class="big" id="winDiff">ふつう</div>
   <p id="winSub">ミス 0</p>
+  <button class="dbtn" id="cityBtn" style="display:none">立体で見る</button>
   <button class="dbtn primary" id="againBtn">もう一局</button>
 </div></div>
 
+<div class="ov" id="ovGive"><div class="card">
+  <h2>答えを見る</h2>
+  <p>この問題の答えを表示します。<br>クリアにはなりません。</p>
+  <button class="dbtn primary" id="giveYes">答えを見る</button>
+  <button class="dbtn" id="giveNo">もう少し考える</button>
+</div></div>
+
+<div class="ov" id="ovCity"><div class="card">
+  <h2 id="cityTitle">答え</h2>
+  <canvas id="cityCv"></canvas>
+  <div id="cityMode">
+    <button class="mdb on" id="modeTop">俯瞰</button>
+    <button class="mdb" id="modeSide">横から見る</button>
+  </div>
+  <div id="cityCtl">
+    <button class="rotb" id="rotL" aria-label="左に回す">&#8634;</button>
+    <span id="cityHint">ドラッグで回転</span>
+    <button class="rotb" id="rotR" aria-label="右に回す">&#8635;</button>
+  </div>
+  <div id="sideCtl" style="display:none">
+    <button class="rotb" id="lineP" aria-label="前の列">&#9664;</button>
+    <button class="mdb" id="dirBtn">向きを変える</button>
+    <button class="rotb" id="lineN" aria-label="次の列">&#9654;</button>
+  </div>
+  <p id="citySub"></p>
+  <button class="dbtn primary" id="cityClose">閉じる</button>
+</div></div>
+
 <div class="ov" id="ovRule"><div class="card">
-  <h2>宝探しの遊びかた</h2>
-  <div class="rules">
+  <h2 id="ruleTitle">宝探しの遊びかた</h2>
+  <div class="rules" id="ruleSky">
     <p>盤面のどこかに<b>宝</b>が隠れています。宝のマスには印をつけ、それ以外のマスはすべて掘り出せばクリアです。</p>
     <h3>操作</h3>
     <p>下の<b>「掘る」「宝マーク」</b>で、タップしたときの動作を切り替えます。<b>選ばれているほうが色つき</b>になります。<br>
@@ -320,6 +408,19 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
     <p>宝のマスを掘る、または宝でないマスに印をつけると<b>ミス</b>が1増えます。盤面は変わらないので、正しいほうをやり直してください。</p>
     <h3>運の要素はありません</h3>
     <p>出題されるのは、この2種類の数字だけで<b>最初の一手から最後まで理詰めで解ける盤面</b>だけです。当てずっぽうが必要になる場面は来ません。迷ったら、残り0の行・列か、周囲の数字が小さいマスから見直してください。</p>
+  </div>
+  <div class="rules" id="ruleBld" style="display:none">
+    <p>数字は<b>ビルの高さ</b>です。各行・各列に <b>1〜n を1回ずつ</b>入れます（同じ高さのビルは同じ列に建ちません）。</p>
+    <h3>外周の数字</h3>
+    <p>その位置から真っすぐ見たときに<b>見えるビルの本数</b>です。<b>手前のどのビルよりも高いビルだけ</b>が見えます。</p>
+    <p>例：<b>1 4 2 3</b> と並ぶ行を左から見ると、1 → 4 が見えて、2 と 3 は 4 に隠れるので <b>見える本数は 2</b> です。</p>
+    <h3>覚えておくと速い手</h3>
+    <p><b>1</b> …… その手前は必ず<b>一番高いビル</b>です（1本しか見えない＝最初が最高）。</p>
+    <p><b>n</b>（盤面の一辺と同じ数）…… 手前から <b>1, 2, 3 …</b> と<b>低い順に並びます</b>。</p>
+    <h3>間違えたとき</h3>
+    <p>答えと違う数字を置くと<b>その場で赤くなり</b>、ミスが1増えます。メモ機能で候補を書き込めます。</p>
+    <h3>運の要素はありません</h3>
+    <p>出題されるのは、外周の数字だけで<b>最後まで理詰めで解ける盤面</b>だけです。</p>
   </div>
   <button class="dbtn primary" id="ruleClose">閉じる</button>
 </div></div>
@@ -374,12 +475,21 @@ var SDIFF=[
   {n:'むずかしい', inner:8, tg:20, near:24, d:'8×8・宝20個'},
   {n:'鬼',        inner:9, tg:26, near:34, d:'9×9・宝26個'}
 ];
+/* ビルディング：sz=盤面の一辺（実際の盤面は+2でヒント枠） / keep=ヒントを残す下限割合。
+   7×7 は生成時間が数秒に跳ねることがあるため採用せず、
+   6×6 でヒントを削る方向で難度を上げている。 */
+var YDIFF=[
+  {n:'やさしい',   sz:4, keep:0.45, d:'4×4'},
+  {n:'ふつう',     sz:5, keep:0.40, d:'5×5'},
+  {n:'むずかしい', sz:6, keep:0.40, d:'6×6'},
+  {n:'鬼',        sz:6, keep:0.20, d:'6×6・ヒント最少'}
+];
 var GEN_BUDGET=6000;   /* 条件に合う盤面を探す上限時間(ms) */
 var KEY='sudoku.save.v1';
 function curDiffList(){
   if(!S) return DIFF;
   return S.game==='k' ? KDIFF : S.game==='p' ? PDIFF : S.game==='q' ? QDIFF
-       : S.game==='s' ? SDIFF : DIFF;
+       : S.game==='s' ? SDIFF : S.game==='y' ? YDIFF : DIFF;
 }
 
 /* ===== 生成 ===== */
@@ -1619,6 +1729,187 @@ function scBuilder(inner,targets,minNear){
   };
 }
 
+/* ===== ビルディングパズル（Skyscrapers） =====
+   盤面は (n+2)×(n+2)。外周の四辺がヒント、内側の n×n が遊ぶマス。
+   各行・各列に 1〜n を1回ずつ入れる（数字＝ビルの高さ）。
+   外周の数字は「その方向から見えるビルの本数」。手前より高いビルだけが見える。 */
+
+/* 並びを片側から見たときに見える本数 */
+function skyVisible(line){
+  var max=0, cnt=0, i;
+  for(i=0;i<line.length;i++) if(line[i]>max){ max=line[i]; cnt++; }
+  return cnt;
+}
+
+/* 1本の行（列）の候補を絞る。
+   両端のヒントと現在の候補に矛盾しない並べ方を数え上げ、
+   各マスに入りうる数字だけを残す。人間が「この行はどう並びうるか」を
+   考えるのと同じ推理で、ビルディングパズルの中心的な手筋。
+   組み合わせが膨らんだ場合は打ち切って緩い評価に落とす（消しすぎない側に倒す）。 */
+function skyLineFilter(cells,cand,cFront,cBack,n){
+  var allowed=new Array(n).fill(0), any=false, budget=20000, over=false;
+  var pick=new Array(n);
+  (function rec(pos,used,maxSoFar,visSoFar){
+    if(over) return;
+    if(--budget<=0){ over=true; return; }
+    /* 前から見える本数は増えることしかないので、超えた時点で打ち切る */
+    if(cFront&&visSoFar>cFront) return;
+    if(cFront&&visSoFar+(n-pos)<cFront) return;   /* 残り全部見えても届かない */
+    if(pos===n){
+      if(cFront&&visSoFar!==cFront) return;
+      if(cBack){
+        var rev=[],k;
+        for(k=n-1;k>=0;k--) rev.push(pick[k]);
+        if(skyVisible(rev)!==cBack) return;
+      }
+      any=true;
+      for(k=0;k<n;k++) allowed[k]|=(1<<pick[k]);
+      return;
+    }
+    for(var v=1;v<=n;v++){
+      var m=1<<v;
+      if(used&m) continue;
+      if(!(cand[cells[pos]]&m)) continue;
+      pick[pos]=v;
+      rec(pos+1, used|m, v>maxSoFar?v:maxSoFar, v>maxSoFar?visSoFar+1:visSoFar);
+      if(over) return;
+    }
+  })(0,0,0,0);
+  if(over){                                  /* 打ち切ったら現在の候補をそのまま通す */
+    for(var k=0;k<n;k++) allowed[k]=cand[cells[k]];
+    return allowed;
+  }
+  return any?allowed:null;
+}
+
+/* ソルバー。logicOnly 相当は KLAST.nodes===1 で判定する。 */
+function skySolve(n,clue,limit,budget){
+  var N=n+2, lines=[], i, r, c, k;
+  /* 行：左→右（左ヒント/右ヒント）、列：上→下（上ヒント/下ヒント） */
+  for(r=1;r<=n;r++){
+    var cs=[]; for(c=1;c<=n;c++) cs.push(r*N+c);
+    lines.push({c:cs, f:clue[r*N], b:clue[r*N+(n+1)]});
+  }
+  for(c=1;c<=n;c++){
+    var cs2=[]; for(r=1;r<=n;r++) cs2.push(r*N+c);
+    lines.push({c:cs2, f:clue[c], b:clue[(n+1)*N+c]});
+  }
+  var full=(1<<(n+1))-2;                     /* 1〜n のビット */
+  var count=0, nodes=0, over=false;
+
+  function propagate(cand){
+    var loop=true, li, ln, al, nc, j, v, m, cnt, at;
+    while(loop){
+      loop=false;
+      for(li=0;li<lines.length;li++){
+        ln=lines[li];
+        al=skyLineFilter(ln.c,cand,ln.f,ln.b,n);
+        if(!al) return false;
+        for(k=0;k<n;k++){
+          nc=cand[ln.c[k]]&al[k];
+          if(!nc) return false;
+          if(nc!==cand[ln.c[k]]){ cand[ln.c[k]]=nc; loop=true; }
+        }
+        /* 同じ行・列に同じ数字は入らない：確定値を除去し、隠れ単数も拾う */
+        for(k=0;k<n;k++){
+          if(bc(cand[ln.c[k]])!==1) continue;
+          m=cand[ln.c[k]];
+          for(j=0;j<n;j++){
+            if(j===k) continue;
+            if(cand[ln.c[j]]&m){
+              cand[ln.c[j]]&=~m;
+              if(!cand[ln.c[j]]) return false;
+              loop=true;
+            }
+          }
+        }
+        for(v=1;v<=n;v++){
+          m=1<<v; cnt=0; at=-1;
+          for(k=0;k<n;k++) if(cand[ln.c[k]]&m){ cnt++; at=ln.c[k]; }
+          if(!cnt) return false;
+          if(cnt===1&&cand[at]!==m){ cand[at]=m; loop=true; }
+        }
+      }
+    }
+    return true;
+  }
+
+  function rec(cand){
+    if(over) return;
+    if(++nodes>budget){ over=true; return; }
+    if(!propagate(cand)) return;
+    var best=-1,bestC=99,cc,j;
+    for(r=1;r<=n;r++) for(c=1;c<=n;c++){
+      j=r*N+c; cc=bc(cand[j]);
+      if(cc>1&&cc<bestC){ bestC=cc; best=j; }
+    }
+    if(best===-1){ count++; return; }
+    for(var v=1;v<=n;v++){
+      if(!(cand[best]&(1<<v))) continue;
+      var next=cand.slice();
+      next[best]=1<<v;
+      rec(next);
+      if(count>=limit||over) return;
+    }
+  }
+
+  var init=new Int16Array(N*N);
+  for(r=1;r<=n;r++) for(c=1;c<=n;c++) init[r*N+c]=full;
+  rec(init);
+  KLAST.nodes=nodes;
+  return over?-1:count;
+}
+/* 仮置きなし（枝分かれ0回）で解けるか */
+function skyHumanSolves(n,clue){
+  return skySolve(n,clue,1,4000)===1 && KLAST.nodes===1;
+}
+
+/* 生成。ラテン方陣から四辺のヒントを全部作り、
+   「解が1通り」かつ「理詰めだけで解ける」ままヒントを削れるだけ削る。 */
+function skyBuilder(n,keepRatio){
+  var tries=0;
+  return {
+    label:function(){ return '盤面を厳選中… '+tries+'回目'; },
+    step:function(ms){
+      var t0=Date.now(), N=n+2;
+      while(Date.now()-t0<ms){
+        tries++;
+        var L=latinSquare(n), sol=new Array(N*N).fill(0), r, c, i;
+        for(r=0;r<n;r++) for(c=0;c<n;c++) sol[(r+1)*N+(c+1)]=L[r*n+c];
+        var clue=new Array(N*N).fill(0), row, col;
+        for(r=1;r<=n;r++){
+          row=[]; for(c=1;c<=n;c++) row.push(sol[r*N+c]);
+          clue[r*N]=skyVisible(row);
+          clue[r*N+(n+1)]=skyVisible(row.slice().reverse());
+        }
+        for(c=1;c<=n;c++){
+          col=[]; for(r=1;r<=n;r++) col.push(sol[r*N+c]);
+          clue[c]=skyVisible(col);
+          clue[(n+1)*N+c]=skyVisible(col.slice().reverse());
+        }
+        if(!skyHumanSolves(n,clue)) continue;      /* 全ヒントでも解けないなら作り直し */
+        /* ヒントを1つずつ外し、理詰めで解けるうちは外し続ける */
+        var spots=[];
+        for(r=1;r<=n;r++){ spots.push(r*N); spots.push(r*N+(n+1)); }
+        for(c=1;c<=n;c++){ spots.push(c); spots.push((n+1)*N+c); }
+        shuffle(spots);
+        var kept=spots.length;
+        var floor=Math.max(3, Math.round(spots.length*keepRatio));
+        for(i=0;i<spots.length&&kept>floor;i++){
+          var save=clue[spots[i]];
+          if(!save) continue;
+          clue[spots[i]]=0;
+          if(skyHumanSolves(n,clue)) kept--;
+          else clue[spots[i]]=save;
+        }
+        if(skySolve(n,clue,2,4000)!==1) continue;  /* 念のため一意性を再確認 */
+        return {n:n, N:N, sol:sol, clue:clue, clues:kept, tries:tries};
+      }
+      return null;
+    }
+  };
+}
+
 /* ===== 状態 ===== */
 var S=null, sel=-1, memo=false;
 
@@ -1675,6 +1966,34 @@ function newKiller(d,onDone){
   step();
 }
 
+/* ビルディングパズルの開局。外周をヒント枠にするので block で入力を止める。 */
+function newSkyscraper(d,onDone){
+  var spec=YDIFF[d], builder=skyBuilder(spec.sz,spec.keep);
+  var lbl=document.getElementById('genLbl');
+  function step(){
+    var r=withRng(function(){ return builder.step(70); });
+    if(!r){ if(lbl) lbl.textContent=builder.label(); setTimeout(step,0); return; }
+    var N=r.N, NN=N*N, n=r.n, block=new Array(NN).fill(false), i, rr, cc;
+    for(i=0;i<NN;i++){
+      rr=(i/N)|0; cc=i%N;
+      if(rr===0||cc===0||rr===N-1||cc===N-1) block[i]=true;   /* 外周は入力不可 */
+    }
+    buildBoard(N,false,n);
+    S={game:'y', n:N, inner:n, dmax:n, diff:d, sol:r.sol, clue:r.clue, block:block,
+       clues:r.clues,
+       given:new Array(NN).fill(false), board:new Array(NN).fill(0),
+       notes:new Array(NN).fill(0), undo:[], miss:0, done:false};
+    sel=-1; memo=false;
+    save(); renderCages(); renderAll(); syncBar();
+    if(onDone) onDone();
+    if(!META.sawBld){                       /* 初回だけ遊びかたを開く */
+      META.sawBld=1; metaSave();
+      setTimeout(openRules,260);
+    }
+  }
+  step();
+}
+
 /* 宝探しの開局。数字を入れないので board/notes は使わず view を持つ。 */
 function newSquarecells(d,onDone){
   var spec=SDIFF[d], builder=scBuilder(spec.inner,spec.tg,spec.near);
@@ -1697,7 +2016,7 @@ function newSquarecells(d,onDone){
     /* 初めて遊ぶときだけ、操作が分からないまま詰まらないようルールを開く */
     if(!META.sawRule){
       META.sawRule=1; metaSave();
-      setTimeout(function(){ document.getElementById('ovRule').classList.add('show'); },260);
+      setTimeout(openRules,260);
     }
   }
   step();
@@ -1749,7 +2068,7 @@ function metaLoad(){
     var o=JSON.parse(localStorage.getItem(META_KEY));
     if(o&&typeof o==='object'){
       META.streak=o.streak||0; META.best=o.best||0; META.daily=o.daily||null;
-      META.sawRule=o.sawRule||0;
+      META.sawRule=o.sawRule||0; META.sawBld=o.sawBld||0;
     }
   }catch(e){}
 }
@@ -1784,7 +2103,8 @@ function withRng(fn){
 var DAILY_POOL=[
   {g:'n',d:2},{g:'k',d:1},{g:'p',d:1},{g:'q',d:1},{g:'s',d:1},
   {g:'n',d:3},{g:'k',d:2},{g:'p',d:2},{g:'q',d:2},{g:'s',d:2},
-  {g:'n',d:4},{g:'k',d:0},{g:'p',d:3},{g:'q',d:0},{g:'s',d:3}
+  {g:'n',d:4},{g:'k',d:0},{g:'p',d:3},{g:'q',d:0},{g:'s',d:3},
+  {g:'y',d:1},{g:'y',d:2}
 ];
 function dailyPick(){ return DAILY_POOL[hashStr('pick|'+todayKey())%DAILY_POOL.length]; }
 
@@ -1796,7 +2116,8 @@ function load(){
       var n=o.n||9;
       if(o.board.length!==n*n) return false;        /* 壊れたセーブは捨てる */
       S=o; S.undo=S.undo||[]; S.game=S.game||'n'; S.n=n;   /* 旧セーブは9×9の数独 */
-      buildBoard(n, S.game!=='p'&&S.game!=='q'&&S.game!=='s', S.game==='s'?0:(S.dmax||n));
+      buildBoard(n, S.game!=='p'&&S.game!=='q'&&S.game!=='s'&&S.game!=='y',
+                 S.game==='s'?0:(S.dmax||n));
       return true;
     }
   }catch(e){}
@@ -1834,6 +2155,30 @@ function conflicts(){
       for(vv in dup) if(dup[vv].length>1) dup[vv].forEach(function(x){bad[x]=1;});
       if(sum>rn.s || (filled===rn.c.length&&sum!==rn.s))
         for(k=0;k<rn.c.length;k++) if(S.board[rn.c[k]]) bad[rn.c[k]]=1;
+    }
+    return bad;
+  }
+  /* ビルディング：行・列の重複と、埋まりきった列のヒント（見える本数）を判定 */
+  if(S.game==='y'){
+    var m=S.inner, N2=S.n, a, b, line, pos, seen2, vv2;
+    function checkLine(cells,cf,cb){
+      var vals=[], full2=true, sn={}, kk;
+      for(kk=0;kk<cells.length;kk++){
+        var x=S.board[cells[kk]];
+        if(!x){ full2=false; } else { if(sn[x]) { bad[cells[kk]]=1; bad[sn[x]]=1; } sn[x]=cells[kk]; }
+        vals.push(x);
+      }
+      if(!full2) return;
+      if(cf&&skyVisible(vals)!==cf) for(kk=0;kk<cells.length;kk++) bad[cells[kk]]=1;
+      if(cb&&skyVisible(vals.slice().reverse())!==cb) for(kk=0;kk<cells.length;kk++) bad[cells[kk]]=1;
+    }
+    for(a=1;a<=m;a++){
+      line=[]; for(b=1;b<=m;b++) line.push(a*N2+b);
+      checkLine(line, S.clue[a*N2], S.clue[a*N2+(m+1)]);
+    }
+    for(b=1;b<=m;b++){
+      line=[]; for(a=1;a<=m;a++) line.push(a*N2+b);
+      checkLine(line, S.clue[b], S.clue[(m+1)*N2+b]);
     }
     return bad;
   }
@@ -1930,7 +2275,7 @@ function scLineDone(kind,k){
 function dmaxOf(){ return S.dmax||S.n||9; }
 /* 「置いた瞬間に唯一解と答え合わせする」ゲーム（キラー・賢くなる・カックロ）。
    数独だけは従来どおり規則違反ベースの表示。 */
-function answerCheck(){ return S&&(S.game==='k'||S.game==='p'||S.game==='q'); }
+function answerCheck(){ return S&&(S.game==='k'||S.game==='p'||S.game==='q'||S.game==='y'); }
 
 /* ===== 入力 ===== */
 function pushUndo(i){ S.undo.push({i:i, v:S.board[i], n:S.notes[i], miss:S.miss}); if(S.undo.length>400) S.undo.shift(); }
@@ -1984,14 +2329,27 @@ function win(){
   function name0(){ return gameLabel()+curDiffList()[S.diff].n+' / ミス '+S.miss
                            +'（自己最高 '+META.best+'）'; }
   save(); syncBar();
+  /* ノーミスならパーフェクト。見出しと演出を切り替える */
+  var perfect=(S.miss===0);
+  document.getElementById('winTitle').textContent=perfect?'パーフェクトクリア':'クリア！';
   document.getElementById('winDiff').textContent=name;
-  document.getElementById('winSub').textContent=sub;
+  /* パーフェクトは見出しで既に伝わるので、副題の「ミス 0」は冗長。
+     連戦・日替わりは別の情報を持つので、そちらはそのまま出す。 */
+  document.getElementById('winSub').textContent=
+    (perfect && sub==='ミス 0') ? 'ミスなしで完走' : sub;
   document.getElementById('againBtn').textContent=
     MODE==='streak' ? '次の一局' : MODE==='daily' ? '閉じる' : 'もう一局';
+  /* ビルはクリアした街を立体で見せる。花火を先に見せてから重ねる */
+  var isBld=(S.game==='y');
+  document.getElementById('cityBtn').style.display=isBld?'':'none';
+  if(isBld) setTimeout(function(){
+    if(S&&S.game==='y'&&S.done) showCity('完成した街','あなたが建てた街です');
+  }, REDUCED?0:1900);
   var ov=document.getElementById('ovWin');
   ov.classList.remove('lit');
+  ov.classList.toggle('perfect',perfect);
   ov.classList.add('show'); ov.classList.add('fxon');
-  celebrate(lv);
+  celebrate(perfect?Math.max(lv,4):lv, perfect);
   /* 暗幕は少し遅らせて、まず盤面と花火を見せる */
   if(REDUCED) ov.classList.add('lit');
   else setTimeout(function(){ ov.classList.add('lit'); },600);
@@ -2212,9 +2570,63 @@ function renderSquarecells(){
   document.getElementById('tools').classList.add('sconly');
 }
 
+/* ビルディングの描画。外周4辺がヒント、内側が遊ぶマス。 */
+function renderSkyscraper(){
+  var N=S.n, m=S.inner, NN=N*N, cells=boardEl.children, i, el, r, c, v, cls;
+  var bad={};
+  for(i=0;i<NN;i++) if(S.board[i]&&S.board[i]!==S.sol[i]) bad[i]=1;   /* 答えと照合 */
+  var sr=sel>=0?((sel/N)|0):-1, sc=sel>=0?(sel%N):-1;
+  var selV=sel>=0?S.board[sel]:0, filled=0;
+  for(i=0;i<NN;i++){
+    el=cells[i]; r=(i/N)|0; c=i%N;
+    if(S.block[i]){                                   /* 外周のヒント枠 */
+      var cv=S.clue[i]||0;
+      el.className='cell skyedge'+(cv?'':' skyempty');
+      el.textContent=cv?cv:'';
+      continue;
+    }
+    v=S.board[i];
+    if(v) filled++;
+    cls='cell skycell';
+    if(sel>=0){
+      if(r===sr||c===sc) cls+=' peer';
+      if(selV&&v===selV) cls+=' same';
+      if(i===sel) cls+=' sel';
+    }
+    if(v) cls+=' user';
+    if(bad[i]) cls+=' err';
+    el.className=cls;
+    if(v) el.textContent=v;
+    else if(S.notes[i]){
+      var h='<div class="notes">', d;
+      for(d=1;d<=m;d++) h+='<span>'+(((S.notes[i]>>d)&1)?d:'')+'</span>';
+      el.innerHTML=h+'</div>';
+    } else el.textContent='';
+  }
+  var cnt=new Array(m+2).fill(0);
+  for(i=0;i<NN;i++) if(!S.block[i]&&S.board[i]) cnt[S.board[i]]++;
+  for(i=0;i<PAD_N;i++) padEl.children[i].classList.toggle('done',cnt[i+1]>=m);
+  document.getElementById('diffLbl').textContent=
+    'ビル・'+curDiffList()[S.diff].n+' '+filled+'/'+(m*m);
+  document.getElementById('missLbl').textContent=S.miss;
+  var mb=document.getElementById('memoBtn');
+  mb.firstChild.nodeValue='メモ ';
+  document.getElementById('tools').classList.remove('sconly');
+  mb.classList.toggle('on',memo);
+  mb.querySelector('.tag').textContent=memo?'ON':'OFF';
+}
+
 function renderAll(){
   if(!S) return;
+  /* 「?」ボタンは説明が要るゲームのときだけ出す。
+     描画のたびに揃えることで、開局処理ごとの呼び忘れを防ぐ。 */
+  var hb=document.getElementById('helpBtn');
+  if(hb) hb.style.display=(S.game==='y')?'':'none';
+  var gb=document.getElementById('giveBtn');
+  if(gb) gb.style.display=(S.game==='y')?'':'none';
+  document.getElementById('tools').classList.toggle('ybld', S.game==='y');
   if(S.game==='s'){ renderSquarecells(); return; }
+  if(S.game==='y'){ renderSkyscraper(); return; }
   var bad=conflicts();
   var n=S.n||9, NN=n*n, isQ=(S.game==='q'), blocks=(S.game!=='p'&&!isQ);
   /* キラー・賢くなる・カックロの赤表示は「答えと違うマス」。規則違反マークより
@@ -2265,6 +2677,295 @@ function renderAll(){
   document.getElementById('tools').classList.remove('sconly');
   mb.classList.toggle('on',memo);
   mb.querySelector('.tag').textContent=memo?'ON':'OFF';
+}
+
+/* ===== ビルディングパズルの立体表示 =====
+   外部ライブラリは使えないので、Canvas に等角投影（アイソメトリック）で
+   自前描画する。1マスを直方体として、上面・左面・右面の3枚を明度差で描き分ける。
+   奥から手前へ描くことで前後関係が正しく出る。 */
+var cityRaf=0;
+/* 立体表示の状態。yaw は見る向き（ラジアン）で、ドラッグで自由に回せる。 */
+var CITY={sol:null,clue:null,N:0,n:0,p:1,yaw:Math.PI/4,drag:false,x0:0,yaw0:0,
+          mode:'top',dir:0,idx:0,visCount:0,clueNow:0,labelNow:''};
+var CITY_TILT=0.52;      /* 奥行きの潰し具合。1に近いほど真上から見た絵になる */
+var CITY_UH=0.34;        /* 1階分の高さ（タイル1枚を1とした比率） */
+
+/* 高さごとの色相。低い＝寒色、高い＝暖色にして、高さが一目で分かるようにする */
+function cityHue(h,n){
+  var t=n>1?(h-1)/(n-1):0;
+  return 205-(205-42)*t;                  /* 青 → 金 */
+}
+
+function drawCity(cv){
+  var sol=CITY.sol, N=CITY.N, n=CITY.n, p=CITY.p, yaw=CITY.yaw;
+  if(!sol) return;
+  var g=cv.getContext('2d');
+  var dpr=Math.min(2,window.devicePixelRatio||1);
+  var W=cv.clientWidth, H=cv.clientHeight;
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){
+    cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+  }
+  g.setTransform(dpr,0,0,dpr,0,0);
+  g.clearRect(0,0,W,H);
+
+  var cs=Math.cos(yaw), sn=Math.sin(yaw), mid=n/2;
+  /* タイル1枚を1とした座標系で投影する。倍率は後でまとめて掛ける。 */
+  function unit(x,y,z){
+    var dx=x-mid, dy=y-mid;
+    var rx=dx*cs-dy*sn, ry=dx*sn+dy*cs;
+    return {x:rx, y:ry*CITY_TILT-z*CITY_UH, d:ry};
+  }
+  /* 見る向きで外形が変わるので、毎回その向きでの外接を測ってから中央に収める */
+  var pts=[], gx, gy;
+  for(gx=0;gx<=n;gx+=n) for(gy=0;gy<=n;gy+=n){
+    pts.push(unit(gx,gy,0)); pts.push(unit(gx,gy,n));
+  }
+  var minX=1e9,maxX=-1e9,minY=1e9,maxY=-1e9;
+  pts.forEach(function(q){
+    if(q.x<minX)minX=q.x; if(q.x>maxX)maxX=q.x;
+    if(q.y<minY)minY=q.y; if(q.y>maxY)maxY=q.y;
+  });
+  var sc=Math.min(W*0.94/(maxX-minX), H*0.94/(maxY-minY));
+  var ox=W/2-(minX+maxX)/2*sc, oy=H/2-(minY+maxY)/2*sc;
+  function proj(x,y,z){ var q=unit(x,y,z); return {x:ox+q.x*sc, y:oy+q.y*sc, d:q.d}; }
+
+  /* 地面 */
+  var g0=proj(0,0,0), g1=proj(n,0,0), g2=proj(n,n,0), g3=proj(0,n,0);
+  g.beginPath();
+  g.moveTo(g0.x,g0.y); g.lineTo(g1.x,g1.y); g.lineTo(g2.x,g2.y); g.lineTo(g3.x,g3.y);
+  g.closePath();
+  g.fillStyle=getComputedStyle(document.documentElement).getPropertyValue('--peer').trim()||'#eee';
+  g.fill();
+
+  /* 手前のビルが奥を隠すよう、回転後の奥行きで並べ替えてから描く */
+  var cells=[], r, c;
+  for(r=0;r<n;r++) for(c=0;c<n;c++){
+    var h0=sol[(r+1)*N+(c+1)];
+    if(h0) cells.push({r:r,c:c,h:h0,d:unit(c+0.5,r+0.5,0).d});
+  }
+  cells.sort(function(a,b){ return a.d-b.d; });
+
+  var span=2*(n-1)||1, LIGHT=-2.1;
+  var floorPx=CITY_UH*sc;                 /* 1階分が画面上で何ピクセルか */
+  cells.forEach(function(cell){
+    /* 奥のビルから順に立ち上がる */
+    var delay=((cell.r+cell.c)/span)*0.45;
+    var t=Math.max(0,Math.min(1,(p-delay)/0.55));
+    t=1-Math.pow(1-t,3);
+    var hh=cell.h*t;
+    if(hh<=0.01) return;
+
+    var x=cell.c, y=cell.r, hue=cityHue(cell.h,n);
+    var cor=[[x,y],[x+1,y],[x+1,y+1],[x,y+1]];
+    var faces=[], i;
+    for(i=0;i<4;i++){
+      var a=cor[i], b=cor[(i+1)%4];
+      /* 面の外向き（中心から辺の中点へ）を回転させ、光の当たり具合を決める */
+      var mx=(a[0]+b[0])/2-(x+0.5), my=(a[1]+b[1])/2-(y+0.5);
+      var nx=mx*cs-my*sn, ny=mx*sn+my*cs;
+      faces.push({a:a, b:b,
+                  d:(unit(a[0],a[1],0).d+unit(b[0],b[1],0).d)/2,
+                  lit:0.5+0.5*Math.cos(Math.atan2(ny,nx)-LIGHT)});
+    }
+    faces.sort(function(u,v){ return u.d-v.d; });   /* 奥の面から描いて手前で上書き */
+
+    faces.forEach(function(f){
+      var ab=proj(f.a[0],f.a[1],0), bb=proj(f.b[0],f.b[1],0);
+      var at=proj(f.a[0],f.a[1],hh), bt=proj(f.b[0],f.b[1],hh);
+      g.fillStyle='hsl('+hue+',52%,'+(28+26*f.lit).toFixed(1)+'%)';
+      g.beginPath();
+      g.moveTo(at.x,at.y); g.lineTo(bt.x,bt.y); g.lineTo(bb.x,bb.y); g.lineTo(ab.x,ab.y);
+      g.closePath(); g.fill();
+      /* 階層の区切り線。1階分が細かすぎるときは省く */
+      if(floorPx>=5){
+        g.strokeStyle='hsl('+hue+',45%,'+(16+14*f.lit).toFixed(1)+'%)';
+        g.lineWidth=Math.max(0.7,Math.min(1.4,floorPx*0.07));
+        for(var k=1;k<hh-0.02;k++){
+          var la=proj(f.a[0],f.a[1],k), lb=proj(f.b[0],f.b[1],k);
+          g.beginPath(); g.moveTo(la.x,la.y); g.lineTo(lb.x,lb.y); g.stroke();
+        }
+      }
+    });
+
+    /* 上面 */
+    var tp=cor.map(function(q){ return proj(q[0],q[1],hh); });
+    g.fillStyle='hsl('+hue+',58%,63%)';
+    g.beginPath();
+    g.moveTo(tp[0].x,tp[0].y);
+    for(i=1;i<4;i++) g.lineTo(tp[i].x,tp[i].y);
+    g.closePath(); g.fill();
+
+    /* 上面に階数を書いて、盤面の数字との対応が分かるようにする */
+    if(t>0.85&&sc>26){
+      g.fillStyle='rgba(0,0,0,.62)';
+      g.font='700 '+Math.round(sc*0.3)+'px -apple-system,BlinkMacSystemFont,system-ui,sans-serif';
+      g.textAlign='center'; g.textBaseline='middle';
+      g.globalAlpha=(t-0.85)/0.15;
+      g.fillText(cell.h,(tp[0].x+tp[2].x)/2,(tp[0].y+tp[2].y)/2);
+      g.globalAlpha=1;
+    }
+  });
+}
+
+/* ===== 横から見る（地上視点） =====
+   1本の行／列を、その端に立って見通した図。手前から奥へビルが並び、
+   手前より高いものだけが「見える」。隠れるビルは沈めて描くので、
+   ヒントの数字（見える本数）が正しいことを目で確かめられる。 */
+var SIDE_DIRS=[
+  {k:'左から', row:true,  rev:false},
+  {k:'右から', row:true,  rev:true },
+  {k:'上から', row:false, rev:false},
+  {k:'下から', row:false, rev:true }
+];
+/* 手前から奥への高さの並びと、その向きのヒントを取り出す */
+function sideLine(){
+  var n=CITY.n, N=CITY.N, sol=CITY.sol, d=SIDE_DIRS[CITY.dir], i=CITY.idx, h=[], k, clue;
+  if(d.row){
+    for(k=1;k<=n;k++) h.push(sol[(i+1)*N+k]);
+    clue = d.rev ? CITY.clue[(i+1)*N+(n+1)] : CITY.clue[(i+1)*N];
+  }else{
+    for(k=1;k<=n;k++) h.push(sol[k*N+(i+1)]);
+    clue = d.rev ? CITY.clue[(n+1)*N+(i+1)] : CITY.clue[i+1];
+  }
+  if(d.rev) h.reverse();
+  return {h:h, clue:clue||0, label:d.k+' '+(i+1)+(d.row?'行目':'列目')};
+}
+function drawCitySide(cv){
+  var g=cv.getContext('2d');
+  var dpr=Math.min(2,window.devicePixelRatio||1);
+  var W=cv.clientWidth, H=cv.clientHeight;
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){
+    cv.width=Math.round(W*dpr); cv.height=Math.round(H*dpr);
+  }
+  g.setTransform(dpr,0,0,dpr,0,0);
+  g.clearRect(0,0,W,H);
+
+  var n=CITY.n, L=sideLine(), hs=L.h, i, k;
+  var pad=12, groundY=H-22, topPad=30;
+  /* 高さは実寸どおり（奥でも縮めない）。縮めると「奥の高いビルが低く見える」
+     という、このパズルの理屈と食い違う絵になってしまう。
+     奥行きは重なりと明度だけで表す。 */
+  var OV=0.62;                                   /* 隣との重なり具合 */
+  var DX=0.16;                                   /* 屋上の奥行き（幅に対する比） */
+  /* 一番奥のビルは屋上の奥行きぶん右に出るので、それも幅の計算に入れる */
+  var bw=(W-pad*2)/(1+(n-1)*OV+DX);
+  var dx=bw*DX, dy=dx*0.5;
+  var unit=(groundY-topPad-dy)/n;                /* 1階分の高さ */
+
+  var css=getComputedStyle(document.documentElement);
+  var lineCol=css.getPropertyValue('--line').trim()||'#ccc';
+  var accent=css.getPropertyValue('--accent').trim()||'#2f6fd0';
+  var isDark=css.getPropertyValue('--panel').trim().toLowerCase()!=='#fffdf8';
+
+  /* 地面 */
+  g.strokeStyle=lineCol; g.lineWidth=1;
+  g.beginPath(); g.moveTo(pad*0.5,groundY+0.5); g.lineTo(W-pad*0.5-2,groundY+0.5); g.stroke();
+
+  /* 手前より高いビルだけが見える */
+  var maxSoFar=[], mx=0, visCount=0;
+  for(i=0;i<n;i++){ maxSoFar.push(mx); if(hs[i]>mx) mx=hs[i]; }
+  for(i=0;i<n;i++) if(hs[i]>maxSoFar[i]) visCount++;
+
+  function bx(i){ return pad+i*bw*OV; }
+
+  /* 奥から手前へ描くと、手前のビルが奥を隠す＝実際の見え方になる */
+  for(i=n-1;i>=0;i--){
+    var h=hs[i], vis=h>maxSoFar[i];
+    var x=bx(i), hh=h*unit, topY=groundY-hh;
+    var hue=cityHue(h,n);
+    var lit=vis? (isDark?48:52) : (isDark?26:74);
+    var sat=vis? 56 : 12;
+    g.fillStyle='hsl('+hue+','+sat+'%,'+lit+'%)';
+    g.fillRect(x,topY,bw,hh);
+    /* 屋上（奥行きを少しだけ付けて立体に見せる） */
+    g.fillStyle='hsl('+hue+','+sat+'%,'+(lit+11)+'%)';
+    g.beginPath();
+    g.moveTo(x,topY); g.lineTo(x+dx,topY-dy); g.lineTo(x+bw+dx,topY-dy); g.lineTo(x+bw,topY);
+    g.closePath(); g.fill();
+    /* 階層の区切り線 */
+    if(unit>=5){
+      g.strokeStyle= vis ? 'hsl('+hue+',45%,'+(isDark?30:32)+'%)' : 'rgba(128,128,128,.32)';
+      g.lineWidth=1;
+      for(k=1;k<h;k++){
+        var y=groundY-k*unit+0.5;
+        g.beginPath(); g.moveTo(x,y); g.lineTo(x+bw,y); g.stroke();
+      }
+    }
+    /* 階数はビルの中に書く（外に出すと背景と同化して読めない） */
+    if(bw>18){
+      g.font='700 '+Math.round(Math.min(15,bw*0.34))+'px -apple-system,BlinkMacSystemFont,system-ui,sans-serif';
+      g.textAlign='center';
+      if(hh>=20){
+        g.fillStyle= vis ? 'rgba(255,255,255,.96)' : (isDark?'rgba(220,220,220,.75)':'rgba(60,60,60,.75)');
+        g.textBaseline='top';
+        g.fillText(h, x+bw/2, topY+4);
+      }else{
+        g.fillStyle=css.getPropertyValue('--fg').trim()||'#333';
+        g.textBaseline='bottom';
+        g.fillText(h, x+bw/2, topY-dy-3);
+      }
+    }
+  }
+
+  /* 視線。見えるビルの屋上を階段状につなぐ。
+     この線より下に頭が収まるビルが「隠れている」ことが一目で分かる。 */
+  g.strokeStyle=accent; g.setLineDash([4,3]); g.lineWidth=1.4; g.globalAlpha=.8;
+  g.beginPath();
+  var py=groundY-4;
+  g.moveTo(pad*0.5,py);
+  mx=0;
+  for(i=0;i<n;i++){
+    if(hs[i]>mx){ mx=hs[i]; py=groundY-mx*unit-dy; g.lineTo(bx(i),py); }
+    g.lineTo(bx(i)+bw,py);
+  }
+  g.lineTo(W-pad*0.5-2,py);          /* 端で切れて見えないよう少し内側で止める */
+  g.stroke();
+  g.setLineDash([]); g.globalAlpha=1;
+
+  /* 視点の目印 */
+  g.fillStyle=accent;
+  g.beginPath();
+  g.moveTo(pad*0.5,groundY-11); g.lineTo(pad*0.5+10,groundY-5); g.lineTo(pad*0.5,groundY+1);
+  g.closePath(); g.fill();
+
+  CITY.visCount=visCount; CITY.clueNow=L.clue; CITY.labelNow=L.label;
+}
+
+function cityRender(){
+  var cv=document.getElementById('cityCv');
+  if(CITY.mode==='side'){
+    drawCitySide(cv);
+    var ok=(CITY.clueNow===CITY.visCount);
+    document.getElementById('citySub').innerHTML=
+      CITY.labelNow+' — 見える <b>'+CITY.visCount+'</b> 棟'+
+      (CITY.clueNow?('　ヒント <b>'+CITY.clueNow+'</b> '+(ok?'✓':'✗')):'（ヒントなし）');
+  }else{
+    drawCity(cv);
+  }
+}
+
+/* 立体表示を開く。sol は現在の問題の答え。 */
+function showCity(title,sub){
+  var ov=document.getElementById('ovCity');
+  document.getElementById('cityTitle').textContent=title;
+  document.getElementById('citySub').textContent=sub||'';
+  CITY.sol=S.sol; CITY.clue=S.clue; CITY.N=S.n; CITY.n=S.inner;
+  CITY.yaw=Math.PI/4; CITY.mode='top'; CITY.dir=0; CITY.idx=0;
+  syncCityCtl();
+  ov.classList.add('show');
+  if(cityRaf){ cancelAnimationFrame(cityRaf); cityRaf=0; }
+  if(REDUCED){ CITY.p=1; cityRender(); return; }
+  var t0=performance.now();
+  (function tick(now){
+    CITY.p=Math.min(1,(now-t0)/1400);
+    cityRender();
+    if(CITY.p<1) cityRaf=requestAnimationFrame(tick); else cityRaf=0;
+  })(t0);
+}
+
+function hideCity(){
+  if(cityRaf){ cancelAnimationFrame(cityRaf); cityRaf=0; }
+  document.getElementById('ovCity').classList.remove('show');
 }
 
 /* ===== クリア演出（花火・紙吹雪） =====
@@ -2321,24 +3022,82 @@ function fxCannon(dir){                      /* クラッカー：画面下の�
               rot:Math.random()*6.28, vrot:(Math.random()-0.5)*15});
 }
 
+/* 花吹雪：紙吹雪より軽く、左右に揺れながらゆっくり舞い落ちる */
+var PETAL=['#ffd7e6','#ffc0d4','#fff0f5','#ffe0ec','#f9c9dd','#ffffff'];
+function fxPetals(n){
+  if(fxP.length>FX_MAX) return;
+  for(var i=0;i<n;i++)
+    fxP.push({t:'p', x:Math.random()*innerWidth, y:-20-Math.random()*innerHeight*0.8,
+              vx:(Math.random()-0.5)*40, vy:42+Math.random()*52, g:18,
+              life:4.5+Math.random()*3.2, max:7.7, drag:1,
+              col:PETAL[(Math.random()*PETAL.length)|0],
+              w:7+Math.random()*6, h:5+Math.random()*4,
+              rot:Math.random()*6.28, vrot:(Math.random()-0.5)*4,
+              sw:0.7+Math.random()*1.6, sp:Math.random()*6.28, age:0});
+}
+/* ロケット花火：下から打ち上がり、頂点で炸裂する */
+function fxRocket(x){
+  if(fxP.length>FX_MAX) return;
+  fxP.push({t:'r', x:x, y:innerHeight+12,
+            vx:(Math.random()-0.5)*90, vy:-(600+Math.random()*230), g:250,
+            life:1.7+Math.random()*0.5, max:2.2, drag:1,
+            col:fxColor(), sz:2.6, age:0});
+}
+/* 流れ星：画面の端から斜めに横切って消える */
+function fxStar(){
+  if(fxP.length>FX_MAX) return;
+  var left=Math.random()<0.5;
+  fxP.push({t:'m', x: left ? -70 : innerWidth+70,
+            y: 20+Math.random()*innerHeight*0.42,
+            vx:(left?1:-1)*(720+Math.random()*400), vy:200+Math.random()*170, g:0,
+            life:1.5, max:1.5, drag:1, col:'#ffffff', sz:2.8, age:0});
+}
+
 function fxLoop(now){
   var dt=Math.min(48, now-fxLast)/1000; fxLast=now;
   fxG.clearRect(0,0,innerWidth,innerHeight);
   while(fxQ.length && fxQ[0].at<=now){ var b=fxQ.shift(); b.run(); }
   for(var i=fxP.length-1;i>=0;i--){
     var p=fxP[i];
-    p.life-=dt;
+    p.life-=dt; p.age=(p.age||0)+dt;
+    /* ロケットは頂点に達したら炸裂させて自分は消える */
+    if(p.t==='r' && (p.life<=0 || p.vy>=-40)){
+      fxBurst(p.x,p.y);
+      fxP.splice(i,1); continue;
+    }
     if(p.life<=0 || p.y>innerHeight+60){ fxP.splice(i,1); continue; }
     p.vy+=p.g*dt; p.x+=p.vx*dt; p.y+=p.vy*dt;
+    if(p.t==='p') p.x+=Math.sin(p.age*3*p.sw+p.sp)*26*dt;   /* 花びらの揺れ */
     if(p.drag!==1){ p.vx*=p.drag; p.vy*=p.drag; }
     var al=Math.min(1, p.life/(p.max*0.42));
     fxG.globalAlpha=al;
-    if(p.t==='s'){
+    if(p.t==='s'||p.t==='r'){
       fxG.strokeStyle=p.col; fxG.lineWidth=p.sz; fxG.lineCap='round';
       fxG.beginPath();
-      fxG.moveTo(p.x-p.vx*0.022, p.y-p.vy*0.022);
+      var tail=p.t==='r'?0.045:0.022;
+      fxG.moveTo(p.x-p.vx*tail, p.y-p.vy*tail);
       fxG.lineTo(p.x,p.y);
       fxG.stroke();
+    }else if(p.t==='m'){
+      /* 尾を2段に分けて描き、先端ほど明るくする */
+      fxG.strokeStyle=p.col; fxG.lineCap='round';
+      fxG.globalAlpha=al*0.28; fxG.lineWidth=p.sz*0.7;
+      fxG.beginPath();
+      fxG.moveTo(p.x-p.vx*0.13, p.y-p.vy*0.13);
+      fxG.lineTo(p.x-p.vx*0.05, p.y-p.vy*0.05);
+      fxG.stroke();
+      fxG.globalAlpha=al; fxG.lineWidth=p.sz;
+      fxG.beginPath();
+      fxG.moveTo(p.x-p.vx*0.05, p.y-p.vy*0.05);
+      fxG.lineTo(p.x,p.y);
+      fxG.stroke();
+    }else if(p.t==='p'){
+      p.rot+=p.vrot*dt;
+      fxG.save(); fxG.translate(p.x,p.y); fxG.rotate(p.rot);
+      fxG.fillStyle=p.col;
+      fxG.beginPath();
+      fxG.ellipse(0,0,p.w/2,Math.max(1,p.h/2*Math.abs(Math.cos(p.age*2.2))),0,0,6.2832);
+      fxG.fill(); fxG.restore();
     }else{
       p.rot+=p.vrot*dt;
       fxG.save(); fxG.translate(p.x,p.y); fxG.rotate(p.rot);
@@ -2363,10 +3122,12 @@ function fxStop(){
 /* 盤面のウェーブ → クラッカー → 花火と紙吹雪 */
 /* lv=演出の段階。連戦の連続クリア数で 1→8 と派手になる。
    粒子数の上限を決めてあるので、段階を上げてもフレーム落ちしない。 */
-function celebrate(lv){
+function celebrate(lv,perfect){
   if(REDUCED) return;
   lv=Math.max(1,Math.min(8,lv||1));
   fxInit(); fxSize(); fxStop();
+  /* パーフェクトは同時表示の上限も引き上げる（通常は700） */
+  FX_MAX = perfect ? 1100 : 700;
   var cells=boardEl.children, n=BOARD_N, NN=n*n, i;
   var stagger=0.042*9/n;                       /* 盤面が小さくても波の長さを揃える */
   for(i=0;i<NN;i++)
@@ -2403,6 +3164,37 @@ function celebrate(lv){
       });
     });
   }
+
+  /* ---- パーフェクト（ノーミス）専用の上乗せ ----
+     通常分に加えて、クラッカー倍増・花吹雪・ロケット花火・流れ星を重ねる。
+     時間も長めに取り、最後に大玉のフィナーレを置く。 */
+  if(perfect){
+    var q2;
+    for(q2=0;q2<cannonSets+2;q2++)                  /* クラッカーを倍増 */
+      at(180+q2*360,function(){ fxCannon(1); fxCannon(-1); });
+    [200,1100,2100,3100,4100].forEach(function(ms){ /* 花吹雪を絶やさない */
+      at(ms,function(){ fxPetals(70); });
+    });
+    for(q2=0;q2<14;q2++){                           /* ロケット花火 */
+      at(420+q2*300,function(){
+        fxRocket(innerWidth*(0.12+Math.random()*0.76));
+      });
+    }
+    [700,1400,2200,3000,3900,4700].forEach(function(ms){  /* 流れ星 */
+      at(ms,function(){ fxStar(); if(Math.random()<0.5) fxStar(); });
+    });
+    for(q2=0;q2<10;q2++){                           /* 花火も追加で倍増 */
+      at(900+q2*380,function(){
+        fxBurst(innerWidth*(0.1+Math.random()*0.8), innerHeight*(0.1+Math.random()*0.42));
+      });
+    }
+    at(5200,function(){                             /* フィナーレ：三連の大玉 */
+      fxBurst(innerWidth*0.5, innerHeight*0.26);
+      fxBurst(innerWidth*0.2, innerHeight*0.34);
+      fxBurst(innerWidth*0.8, innerHeight*0.34);
+      fxCannon(1); fxCannon(-1);
+    });
+  }
   fxQ.sort(function(a,b){return a.at-b.at;});
   fxLast=performance.now();
   fxRaf=requestAnimationFrame(fxLoop);
@@ -2412,10 +3204,19 @@ function celebrate(lv){
 document.addEventListener('visibilitychange',function(){ if(document.hidden) save(); });
 
 /* ===== UI ===== */
+function openRules(){
+  var bld=(S&&S.game==='y');
+  document.getElementById('ruleTitle').textContent=bld?'ビルディングパズルの遊びかた':'宝探しの遊びかた';
+  document.getElementById('ruleSky').style.display=bld?'none':'';
+  document.getElementById('ruleBld').style.display=bld?'':'none';
+  document.getElementById('ovRule').classList.add('show');
+}
 document.getElementById('memoBtn').addEventListener('click',function(){
-  if(S&&S.game==='s'){ document.getElementById('ovRule').classList.add('show'); return; }
+  if(S&&S.game==='s'){ openRules(); return; }   /* 宝探しはメモを使わないので置き換え */
   memo=!memo; renderAll();
 });
+/* ビルはメモを使うので、ルールは上部バーの「?」から開く */
+document.getElementById('helpBtn').addEventListener('click',openRules);
 document.getElementById('ruleClose').addEventListener('click',function(){
   document.getElementById('ovRule').classList.remove('show');
 });
@@ -2440,6 +3241,8 @@ function restartPuzzle(){
   fxStop();
   var ow=document.getElementById('ovWin');
   ow.classList.remove('show'); ow.classList.remove('fxon'); ow.classList.remove('lit');
+  ow.classList.remove('perfect');
+  hideCity();
   save(); renderCages(); renderAll(); syncBar();
 }
 function hasProgress(){
@@ -2455,6 +3258,89 @@ function hasProgress(){
   }
   return false;
 }
+/* ギブアップ。答えを盤面に入れて立体表示で見せる。
+   クリアではないので演出は出さず、連戦なら記録は途切れる。 */
+function giveUp(){
+  if(!S||S.game!=='y'||S.done) return;
+  var NN=S.n*S.n, i;
+  for(i=0;i<NN;i++){ if(!S.block[i]) S.board[i]=S.sol[i]; S.notes[i]=0; }
+  S.done=true; sel=-1;
+  if(MODE==='streak'){ META.streak=0; metaSave(); }
+  save(); renderAll(); syncBar();
+  showCity('答え','ヒントの数字は、その向きから見えるビルの本数です');
+}
+document.getElementById('giveBtn').addEventListener('click',function(){
+  if(!S||S.game!=='y'||S.done) return;
+  document.getElementById('ovGive').classList.add('show');
+});
+document.getElementById('giveYes').addEventListener('click',function(){
+  document.getElementById('ovGive').classList.remove('show');
+  giveUp();
+});
+document.getElementById('giveNo').addEventListener('click',function(){
+  document.getElementById('ovGive').classList.remove('show');
+});
+document.getElementById('cityClose').addEventListener('click',hideCity);
+/* ドラッグで自由に回す。指を横に動かした量をそのまま角度にする。 */
+(function(){
+  var cv=document.getElementById('cityCv');
+  cv.addEventListener('pointerdown',function(e){
+    CITY.drag=true; CITY.x0=e.clientX; CITY.yaw0=CITY.yaw;
+    /* 指がキャンバスの外へ出ても回し続けられるようにする。
+       端末やイベントの状態によっては失敗するので、失敗しても続行する。 */
+    try{ if(cv.setPointerCapture) cv.setPointerCapture(e.pointerId); }catch(err){}
+    e.preventDefault();
+  });
+  cv.addEventListener('pointermove',function(e){
+    if(!CITY.drag) return;
+    CITY.yaw=CITY.yaw0+(e.clientX-CITY.x0)*0.012;
+    if(!cityRaf) cityRender();          /* 立ち上がり中は既存のループが描く */
+    e.preventDefault();
+  });
+  function end(){ CITY.drag=false; }
+  cv.addEventListener('pointerup',end);
+  cv.addEventListener('pointercancel',end);
+  /* ボタンは45度ずつ、なめらかに回す */
+  function spin(dir){
+    var from=CITY.yaw, to=from+dir*Math.PI/4, t0=performance.now();
+    (function step(now){
+      var k=Math.min(1,(now-t0)/260);
+      CITY.yaw=from+(to-from)*(1-Math.pow(1-k,3));
+      cityRender();
+      if(k<1) requestAnimationFrame(step);
+    })(t0);
+  }
+  document.getElementById('rotL').addEventListener('click',function(){ spin(-1); });
+  document.getElementById('rotR').addEventListener('click',function(){ spin(1); });
+  /* 俯瞰／横から の切り替え */
+  document.getElementById('modeTop').addEventListener('click',function(){
+    CITY.mode='top'; syncCityCtl(); cityRender();
+  });
+  document.getElementById('modeSide').addEventListener('click',function(){
+    CITY.mode='side'; syncCityCtl(); cityRender();
+  });
+  document.getElementById('lineP').addEventListener('click',function(){
+    CITY.idx=(CITY.idx-1+CITY.n)%CITY.n; cityRender();
+  });
+  document.getElementById('lineN').addEventListener('click',function(){
+    CITY.idx=(CITY.idx+1)%CITY.n; cityRender();
+  });
+  document.getElementById('dirBtn').addEventListener('click',function(){
+    CITY.dir=(CITY.dir+1)%4; CITY.idx=0; cityRender();
+  });
+})();
+/* モードに応じて操作列を出し分ける */
+function syncCityCtl(){
+  var side=(CITY.mode==='side');
+  document.getElementById('modeTop').classList.toggle('on',!side);
+  document.getElementById('modeSide').classList.toggle('on',side);
+  document.getElementById('cityCtl').style.display=side?'none':'';
+  document.getElementById('sideCtl').style.display=side?'':'none';
+}
+document.getElementById('cityBtn').addEventListener('click',function(){
+  showCity('完成した街','あなたが建てた街です');
+});
+
 document.getElementById('resetBtn').addEventListener('click',function(){
   if(!S) return;
   if(!hasProgress()){ restartPuzzle(); return; }   /* 消すものが無ければ確認不要 */
@@ -2473,6 +3359,8 @@ document.getElementById('againBtn').addEventListener('click',function(){
   var ov=document.getElementById('ovWin');
   fxStop();
   ov.classList.remove('show'); ov.classList.remove('fxon'); ov.classList.remove('lit');
+  ov.classList.remove('perfect');
+  hideCity();
   if(MODE==='streak'){ startStreakGame(); return; }   /* 連戦は止まらず次の一局へ */
   if(MODE==='daily'){ setMode('free'); return; }      /* 日替わりは1日1局 */
   document.getElementById('ovNew').classList.add('show');
@@ -2481,7 +3369,7 @@ document.getElementById('againBtn').addEventListener('click',function(){
 /* ===== モードの操作 ===== */
 function gameLabel(){
   return S.game==='k'?'キラー・':S.game==='p'?'賢くなる・':S.game==='q'?'カックロ・'
-       :S.game==='s'?'宝探し・':'数独・';
+       :S.game==='s'?'宝探し・':S.game==='y'?'ビル・':'数独・';
 }
 function syncBar(){
   var sl=document.getElementById('streakLbl');
@@ -2503,6 +3391,7 @@ function beginGame(g,d,onDone){
     else if(g==='p') newKenKen(d,done);
     else if(g==='q') newKakuro(d,done);
     else if(g==='s') newSquarecells(d,done);
+    else if(g==='y') newSkyscraper(d,done);
     else newGame(d,done);
   },30);
 }
@@ -2512,7 +3401,7 @@ function setMode(m){
 }
 /* 連戦：ゲーム種別と難易度を巡回させ、連勝が伸びるほど難しくする */
 var STREAK_POOL=[['n',1],['k',0],['p',1],['q',0],['s',0],['n',2],['k',1],['p',2],['q',1],['s',1],
-                 ['n',3],['k',2],['p',3],['q',2],['s',2],['n',4],['k',3],['q',3],['s',3]];
+                 ['n',3],['k',2],['p',3],['q',2],['s',2],['n',4],['k',3],['q',3],['s',3],['y',2],['y',3]];
 function startStreakGame(){
   var idx=Math.min(META.streak,STREAK_POOL.length-1);
   var pick=STREAK_POOL[idx];
@@ -2538,13 +3427,15 @@ var GAME_DESC={
   k:'ヒント数字なし。点線のケージ内の合計だけが手がかりで、ケージ内に同じ数字は入りません。答えと違う数字はその場で赤くなります。',
   p:'3×3ブロックは無く、各行・各列に1〜nを1回ずつ。枠の数字は「12×」なら中身をかけて12。枠の中は同じ数字が入ってもかまいません。答えと違う数字はその場で赤くなります。',
   q:'黒マスの数字が、その右または下に続く白マスの合計。ひとつながりの白マスに同じ数字は入りません（1〜9）。答えと違う数字はその場で赤くなります。',
-  s:'盤面に隠れた宝をすべて見つけます。運の要素はなく、数字だけで全マスが理詰めで決まります。ルールは対局中の「ルール」ボタンからいつでも読めます。'
+  s:'盤面に隠れた宝をすべて見つけます。運の要素はなく、数字だけで全マスが理詰めで決まります。ルールは対局中の「ルール」ボタンからいつでも読めます。',
+  y:'数字はビルの高さ。各行・各列に1〜nを1回ずつ入れます。外周の数字は、その方向から見えるビルの本数です（手前より高いビルだけが見えます）。'
 };
 function buildDiffList(){
   var dl=document.getElementById('diffList');
   dl.innerHTML='';
   document.getElementById('gameDesc').textContent=GAME_DESC[pickGame];
-  (pickGame==='k'?KDIFF:pickGame==='p'?PDIFF:pickGame==='q'?QDIFF:pickGame==='s'?SDIFF:DIFF)
+  (pickGame==='k'?KDIFF:pickGame==='p'?PDIFF:pickGame==='q'?QDIFF:pickGame==='s'?SDIFF
+   :pickGame==='y'?YDIFF:DIFF)
     .forEach(function(spec,d){
     var b=document.createElement('button');
     b.className='dbtn';
@@ -2560,6 +3451,7 @@ function buildDiffList(){
         else if(g==='p') newKenKen(d,done);
         else if(g==='q') newKakuro(d,done);
         else if(g==='s') newSquarecells(d,done);
+        else if(g==='y') newSkyscraper(d,done);
         else newGame(d,done);
       },30);
     });
