@@ -209,6 +209,29 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
 #board.haslabel .cell{padding-top:26%;}
 .cell.hassum .notes{inset:40% 5% 4% 5%;font-size:calc(var(--bs)/var(--n)*.175);}
 
+/* ---- 数リン（スリザーリンク） ----
+   盤面は (2R+1)×(2C+1) のマスで組み、偶数行×偶数列＝点、奇数×奇数＝数字のマスになる。
+   罫線もマスの文字も使わず、すべて #cages の SVG に描く。マスは当たり判定用。 */
+#board.slmode .cell{border:none;background:transparent;}
+#cages line.sl{stroke:var(--user);stroke-width:1.5;stroke-dasharray:none;stroke-linecap:round;}
+#cages line.sl.bad{stroke:var(--err);}
+#cages line.slx{stroke:var(--muted);stroke-width:.9;stroke-dasharray:none;stroke-linecap:round;}
+#cages line.slx.bad{stroke:var(--err);stroke-width:1.2;}
+#cages circle.sldot{fill:var(--line-strong);}
+#cages text.slnum{fill:var(--given);font-size:7.6px;font-weight:700;
+                  text-anchor:middle;dominant-baseline:central;
+                  font-family:-apple-system,BlinkMacSystemFont,system-ui,sans-serif;}
+#cages text.slnum.ok{fill:var(--note);}
+#cages text.slnum.over{fill:var(--err);}
+.num.slmode{aspect-ratio:auto;max-height:none;padding:.72em .3em;font-size:clamp(13px,calc(var(--bs)*.044),19px);
+            display:flex;align-items:center;justify-content:center;gap:.4em;white-space:nowrap;}
+.num.slmode .sw{width:1.5em;height:0;border-top:3px solid var(--fg);border-radius:2px;}
+.num.slmode .sx{font-size:1.15em;line-height:1;color:var(--fg);}
+.num.slmode.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+.num.slmode.on .sw{border-top-color:#fff;}
+.num.slmode.on .sx{color:#fff;}
+.num.slmode:active{transform:translateY(1px);}
+
 /* ---- number pad ---- */
 #pad{display:grid;grid-template-columns:repeat(var(--pn),minmax(0,1fr));gap:calc(var(--bs)*.014);width:var(--bs);}
 .num{
@@ -222,6 +245,8 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
 .num.done{opacity:.3;}
 @media (orientation:landscape){
   #pad{grid-template-columns:repeat(3,1fr);gap:8px;width:100%;}
+  /* 数字パッドではなくモード切替（2つ）のときは、3列だと枠が狭すぎて文字がはみ出す */
+  #pad.two{grid-template-columns:repeat(2,1fr);}
   .num{aspect-ratio:auto; height:clamp(46px,9vh,76px); font-size:clamp(22px,4.4vh,40px);}
 }
 
@@ -260,11 +285,17 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
 /* 宝探しのときは「メモ／消去／取り消し」を使わないので、ルールボタンに置き換える */
 #tools.sconly{grid-template-columns:1fr;}
 #tools.sconly #eraseBtn,#tools.sconly #undoBtn{display:none;}
+/* 数リンは「消去」に当たる操作がない（同じ印をもう一度タップすれば消える） */
+#tools.slonly{grid-template-columns:repeat(3,1fr);}
+/* 数リンの「ルール」は補足の小文字を出すと3列では窮屈になる */
+#tools.slonly .tag{display:none;}
+#tools.slonly #eraseBtn{display:none;}
 #gameTabs{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin:14px 0 4px;}
 /* 6ゲームなので3列×2段。1段に詰めると文字が潰れる */
 .gtab{background:var(--btn);border:1px solid var(--btn-b);border-radius:11px;
       padding:10px 1px;font-size:12.5px;font-weight:600;}
 .gtab.on{background:var(--accent);border-color:var(--accent);color:#fff;}
+.gtab.wide{grid-column:1/-1;}   /* 7つ目は1段使って並びの穴を作らない */
 #spin{font-size:16px;color:#fff;text-align:center;}
 
 /* ---- クリア演出 ---- */
@@ -351,6 +382,7 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
     <button class="gtab" data-g="q">カックロ</button>
     <button class="gtab" data-g="s">宝探し</button>
     <button class="gtab" data-g="y">ビル</button>
+    <button class="gtab wide" data-g="l">数リン</button>
   </div>
   <p id="gameDesc"></p>
   <div id="diffList"></div>
@@ -422,6 +454,24 @@ button{font-family:inherit;color:inherit;touch-action:manipulation;cursor:pointe
     <h3>運の要素はありません</h3>
     <p>出題されるのは、外周の数字だけで<b>最後まで理詰めで解ける盤面</b>だけです。</p>
   </div>
+  <div class="rules" id="ruleSlither" style="display:none">
+    <p>点と点を線でつなぎ、<b>ひとつながりの輪（ループ）</b>をひとつだけ作ります。枝分かれや交差、輪が2つに分かれるのは反則です。</p>
+    <h3>数字の意味</h3>
+    <p>マスの数字は、<b>そのマスの四辺のうち何本に線が引かれるか</b>を表します。<b>0</b> なら四辺すべてに線は引けません。<b>3</b> なら四辺のうち3本に線が引かれます。数字の無いマスに決まりはありません。</p>
+    <h3>操作</h3>
+    <p>下の<b>「線を引く」「×を付ける」</b>で、タップしたときの動作を切り替えます。点と点のあいだを<b>おおよその位置でタップ</b>すれば、一番近い辺に印が付きます。</p>
+    <p>同じ印をもう一度タップすると消えます。辺を<b>長押し</b>すると、切り替えずに逆の印を付けられます。</p>
+    <p><b>×</b>は「ここには線を引かない」という自分用の目印です。付けなくてもクリアできますが、付けていくと次の一手が見えやすくなります。</p>
+    <h3>覚えておくと速い手</h3>
+    <p><b>0 のとなりの 3</b> …… 3 のうち、0 に接していない残り3辺に線が引かれます。</p>
+    <p><b>3 と 3 が横に並ぶ</b> …… あいだの辺と、その両外側の辺に線が引かれます。</p>
+    <p><b>点に集まる線は 0 本か 2 本だけ</b> …… 1本だけ来ている点には、必ずもう1本つながります。3本以上は引けません。</p>
+    <p><b>小さな輪を閉じない</b> …… 全部の線を含まない輪はできないので、その辺は必ず×です。盤面の後半はこの読みが効いてきます。</p>
+    <h3>間違えたとき</h3>
+    <p>答えと違う辺に線や×を付けると<b>その場で赤くなり</b>、ミスが1増えます。もう一度タップして消してください。</p>
+    <h3>運の要素はありません</h3>
+    <p>出題されるのは、<b>最初の一手から最後まで理詰めで解ける盤面</b>だけです。当てずっぽうは要りません。</p>
+  </div>
   <button class="dbtn primary" id="ruleClose">閉じる</button>
 </div></div>
 
@@ -484,12 +534,21 @@ var YDIFF=[
   {n:'むずかしい', sz:6, keep:0.40, d:'6×6'},
   {n:'鬼',        sz:6, keep:0.20, d:'6×6・ヒント最少'}
 ];
+/* 数リン（スリザーリンク）：R×C のマス（盤面の DOM は 2R+1 四方）。
+   lv=1 は伝播のみ、lv=2 は「この辺に線を引くと必ず詰む＝引けない」という背理法も使う。
+   floor=ヒントを残す下限割合（0 なら削れるだけ削る）。lv2 は自然と42%前後に落ち着く。 */
+var LDIFF=[
+  {n:'やさしい',   sz:5,  lv:1, floor:0.62, d:'5×5・ヒント多め'},
+  {n:'ふつう',     sz:7,  lv:1, floor:0.55, d:'7×7'},
+  {n:'むずかしい', sz:8,  lv:2, floor:0,    d:'8×8・輪の連動を読む'},
+  {n:'鬼',        sz:10, lv:2, floor:0,    d:'10×10・ヒント最少'}
+];
 var GEN_BUDGET=6000;   /* 条件に合う盤面を探す上限時間(ms) */
 var KEY='sudoku.save.v1';
 function curDiffList(){
   if(!S) return DIFF;
   return S.game==='k' ? KDIFF : S.game==='p' ? PDIFF : S.game==='q' ? QDIFF
-       : S.game==='s' ? SDIFF : S.game==='y' ? YDIFF : DIFF;
+       : S.game==='s' ? SDIFF : S.game==='y' ? YDIFF : S.game==='l' ? LDIFF : DIFF;
 }
 
 /* ===== 生成 ===== */
@@ -1915,6 +1974,290 @@ var S=null, sel=-1, memo=false;
 
 /* 条件に合う手筋レベルの盤面が出るまで生成を繰り返す。
    UI を固めないよう 70ms ずつに刻み、時間切れなら一番近い盤面を採用する。 */
+/* ===== 数リン（スリザーリンク）=====
+   辺の状態を 0=未定 / 1=線 / 2=× の3値で持つ。
+   ・マスの数字 … その四辺のうち線が何本か
+   ・点 … 集まる線は 0 本か 2 本だけ（枝分かれ・行き止まり禁止）
+   ・全体 … 線はひとつながりの輪ひとつだけ
+   この3つを伝播させるだけで解ける盤面だけを出題する。 */
+
+/* 辺の番号づけ。横辺 H(r,c) を先に、続けて縦辺 V(r,c) を並べる。 */
+var SL_GEOM={};
+function slGeom(R,C){
+  var key=R+'x'+C;
+  if(SL_GEOM[key]) return SL_GEOM[key];
+  var EH=(R+1)*C, E=EH+R*(C+1), D=(R+1)*(C+1), r,c;
+  function H(r,c){ return r*C+c; }
+  function V(r,c){ return EH+r*(C+1)+c; }
+  function dot(r,c){ return r*(C+1)+c; }
+  var cellEdges=[];
+  for(r=0;r<R;r++) for(c=0;c<C;c++)
+    cellEdges.push([H(r,c),H(r+1,c),V(r,c),V(r,c+1)]);
+  var edgeDots=new Array(E);
+  for(r=0;r<=R;r++) for(c=0;c<C;c++) edgeDots[H(r,c)]=[dot(r,c),dot(r,c+1)];
+  for(r=0;r<R;r++) for(c=0;c<=C;c++) edgeDots[V(r,c)]=[dot(r,c),dot(r+1,c)];
+  var dotEdges=[];
+  for(r=0;r<=R;r++) for(c=0;c<=C;c++){
+    var a=[];
+    if(c>0) a.push(H(r,c-1));
+    if(c<C) a.push(H(r,c));
+    if(r>0) a.push(V(r-1,c));
+    if(r<R) a.push(V(r,c));
+    dotEdges.push(a);
+  }
+  var g={R:R,C:C,E:E,EH:EH,D:D,H:H,V:V,dot:dot,
+         cellEdges:cellEdges,edgeDots:edgeDots,dotEdges:dotEdges};
+  SL_GEOM[key]=g;
+  return g;
+}
+
+/* 線が「ちょうどひとつの輪」になっているか。点の次数が全部0か2で、かつ全部つながっていること。 */
+function slOneLoop(g,st){
+  var deg=new Int8Array(g.D), L=0, e, d, k, t;
+  for(e=0;e<g.E;e++) if(st[e]===1){ L++; deg[g.edgeDots[e][0]]++; deg[g.edgeDots[e][1]]++; }
+  if(L<4) return false;
+  for(d=0;d<g.D;d++) if(deg[d]!==0&&deg[d]!==2) return false;
+  var start=-1;
+  for(e=0;e<g.E;e++) if(st[e]===1){ start=e; break; }
+  var seen=new Uint8Array(g.E), stack=[start], n=1;
+  seen[start]=1;
+  while(stack.length){
+    var cur=stack.pop(), ds=g.edgeDots[cur];
+    for(k=0;k<2;k++){
+      var es=g.dotEdges[ds[k]];
+      for(t=0;t<es.length;t++) if(st[es[t]]===1&&!seen[es[t]]){ seen[es[t]]=1; n++; stack.push(es[t]); }
+    }
+  }
+  return n===L;
+}
+
+/* 伝播。矛盾したら false。st は書き換える。 */
+function slPropagate(g,st,clue){
+  var R=g.R, C=g.C, E=g.E, D=g.D, NN=R*C;
+  /* 作業用配列は幾何ごとに使い回す。毎回 new すると lv2 の試行回数ぶん無駄が出る */
+  if(!g._par){ g._par=new Int32Array(D); g._cnt=new Int32Array(D); }
+  var par=g._par, cnt=g._cnt;
+  var changed=true, guard=0, i,t,d,e,ln,un,es,ds,k;
+  function find(x){ while(par[x]!==x){ par[x]=par[par[x]]; x=par[x]; } return x; }
+  while(changed){
+    changed=false;
+    if(++guard>500) return false;
+    /* マスの数字 */
+    for(i=0;i<NN;i++){
+      k=clue[i]; if(k<0) continue;
+      es=g.cellEdges[i]; ln=0; un=0;
+      for(t=0;t<4;t++){ var sv=st[es[t]]; if(sv===1) ln++; else if(sv===0) un++; }
+      if(ln>k||ln+un<k) return false;
+      if(!un) continue;
+      if(ln===k){ for(t=0;t<4;t++) if(!st[es[t]]){ st[es[t]]=2; changed=true; } }
+      else if(ln+un===k){ for(t=0;t<4;t++) if(!st[es[t]]){ st[es[t]]=1; changed=true; } }
+    }
+    /* 点に集まる線は 0 本か 2 本 */
+    for(d=0;d<D;d++){
+      ds=g.dotEdges[d]; ln=0; un=0;
+      for(t=0;t<ds.length;t++){ var sv2=st[ds[t]]; if(sv2===1) ln++; else if(sv2===0) un++; }
+      if(ln>2) return false;
+      if(ln===2){ if(un) for(t=0;t<ds.length;t++) if(!st[ds[t]]){ st[ds[t]]=2; changed=true; } }
+      else if(ln===1){
+        if(!un) return false;                         /* 行き止まり */
+        if(un===1) for(t=0;t<ds.length;t++) if(!st[ds[t]]){ st[ds[t]]=1; changed=true; }
+      }else if(un===1){                               /* 1本だけ残ると次数1になってしまう */
+        for(t=0;t<ds.length;t++) if(!st[ds[t]]){ st[ds[t]]=2; changed=true; }
+      }
+    }
+    /* 全部の線を含まない小さな輪は閉じられない ＝ その辺は×。
+       これは連結成分を数え直すので重い。マスと点の手が尽きたときだけ回す。 */
+    if(changed) continue;
+    for(d=0;d<D;d++){ par[d]=d; cnt[d]=0; }
+    var L=0;
+    for(e=0;e<E;e++) if(st[e]===1){
+      L++;
+      var a=find(g.edgeDots[e][0]), b=find(g.edgeDots[e][1]);
+      if(a!==b) par[a]=b;
+    }
+    if(L){
+      for(e=0;e<E;e++) if(st[e]===1) cnt[find(g.edgeDots[e][0])]++;
+      for(e=0;e<E;e++) if(st[e]===0){
+        var a2=find(g.edgeDots[e][0]), b2=find(g.edgeDots[e][1]);
+        if(a2===b2&&cnt[a2]<L){ st[e]=2; changed=true; }
+      }
+    }
+  }
+  return true;
+}
+
+/* 決まり切った盤面が本当に答えになっているか */
+function slValid(g,st,clue){
+  var i,t,ln,es;
+  for(i=0;i<g.R*g.C;i++){
+    if(clue[i]<0) continue;
+    es=g.cellEdges[i]; ln=0;
+    for(t=0;t<4;t++) if(st[es[t]]===1) ln++;
+    if(ln!==clue[i]) return false;
+  }
+  return slOneLoop(g,st);
+}
+
+/* lv=1 伝播のみ / lv=2 ＋1手先の背理法（この辺に線を引くと必ず詰む＝引けない）。
+   解けたら辺の状態、無理なら null。 */
+function slSolveLv(g,clue,lv){
+  var st=new Int8Array(g.E), e, un, v, t, q;
+  if(!slPropagate(g,st,clue)) return null;
+  for(;;){
+    un=-1;
+    for(e=0;e<g.E;e++) if(!st[e]){ un=e; break; }
+    if(un<0) break;
+    if(lv<2) return null;
+    /* すでに線が接している点まわりから試す（盤面の連動を読むのは普通そこ） */
+    var front=[], rest=[], got=0;
+    for(e=0;e<g.E;e++){
+      if(st[e]) continue;
+      var touch=0, ds=g.edgeDots[e];
+      for(t=0;t<2;t++){
+        var es2=g.dotEdges[ds[t]];
+        for(q=0;q<es2.length;q++) if(st[es2[q]]===1) touch=1;
+      }
+      if(touch) front.push(e); else rest.push(e);
+    }
+    var list=front.concat(rest);
+    if(!g._trial) g._trial=new Int8Array(g.E);
+    var trial=g._trial;
+    /* 見つけた推理はその場で書き込み、走査は最後まで続ける。
+       1つ見つけるたびに先頭からやり直すと、盤面が大きいほど二乗で効いてくる。 */
+    for(var li=0;li<list.length;li++){
+      e=list[li];
+      if(st[e]) continue;
+      for(v=1;v<=2;v++){
+        trial.set(st); trial[e]=v;
+        if(!slPropagate(g,trial,clue)){ st[e]=3-v; got++; break; }
+      }
+    }
+    if(!got) return null;
+    if(!slPropagate(g,st,clue)) return null;
+  }
+  return slValid(g,st,clue)?st:null;
+}
+
+/* 解の個数（limit で打ち切り）。検品用。 */
+function slCount(g,clue,limit,budget){
+  var count=0, nodes=0, over=false;
+  function rec(st){
+    if(over||count>=limit) return;
+    if(++nodes>budget){ over=true; return; }
+    if(!slPropagate(g,st,clue)) return;
+    var e=-1, d, t, ds, ln, cand;
+    for(d=0;d<g.D&&e<0;d++){
+      ds=g.dotEdges[d]; ln=0; cand=-1;
+      for(t=0;t<ds.length;t++){ if(st[ds[t]]===1) ln++; else if(!st[ds[t]]&&cand<0) cand=ds[t]; }
+      if(ln===1&&cand>=0) e=cand;
+    }
+    if(e<0) for(t=0;t<g.E;t++) if(!st[t]){ e=t; break; }
+    if(e<0){ if(slValid(g,st,clue)) count++; return; }
+    var a=st.slice(); a[e]=1; rec(a);
+    if(over||count>=limit) return;
+    var b=st.slice(); b[e]=2; rec(b);
+  }
+  rec(new Int8Array(g.E));
+  return over?-1:count;
+}
+
+/* ランダムな単一ループを作る。「内側の領域」を1マスずつ反転させて育て、
+   内側も外側も4連結（＝穴なし・ちぎれなし）である限り採用する。
+   そうしてできた領域の境界線が、ちょうどひとつの輪になる。 */
+function slRegionOK(R,C,inside){
+  var NN=R*C, n=0, first=-1, i, r, c, j, t;
+  for(i=0;i<NN;i++) if(inside[i]){ n++; if(first<0) first=i; }
+  if(n<3||n>NN-2) return false;
+  var seen=new Uint8Array(NN), st=[first], k=1;
+  seen[first]=1;
+  while(st.length){
+    i=st.pop(); r=(i/C)|0; c=i%C;
+    var nb=[[r-1,c],[r+1,c],[r,c-1],[r,c+1]];
+    for(t=0;t<4;t++){
+      var rr=nb[t][0], cc=nb[t][1];
+      if(rr<0||rr>=R||cc<0||cc>=C) continue;
+      j=rr*C+cc;
+      if(inside[j]&&!seen[j]){ seen[j]=1; k++; st.push(j); }
+    }
+  }
+  if(k!==n) return false;
+  /* 外側は1マス外周を足した盤で数える。全部つながっていれば穴なし。 */
+  var W=C+2, Hh=R+2, MM=W*Hh, out=new Uint8Array(MM), st2=[0], m=1;
+  out[0]=1;
+  while(st2.length){
+    i=st2.pop(); r=(i/W)|0; c=i%W;
+    var nb2=[[r-1,c],[r+1,c],[r,c-1],[r,c+1]];
+    for(t=0;t<4;t++){
+      var r2=nb2[t][0], c2=nb2[t][1];
+      if(r2<0||r2>=Hh||c2<0||c2>=W) continue;
+      j=r2*W+c2;
+      if(out[j]) continue;
+      var ir=r2-1, ic=c2-1;
+      if(ir>=0&&ir<R&&ic>=0&&ic<C&&inside[ir*C+ic]) continue;
+      out[j]=1; m++; st2.push(j);
+    }
+  }
+  return m===MM-n;
+}
+function slMakeLoop(g){
+  var R=g.R, C=g.C, NN=R*C, attempt, t, i, r, c;
+  function at(inside,r,c){ return (r<0||r>=R||c<0||c>=C)?0:inside[r*C+c]; }
+  for(attempt=0;attempt<8;attempt++){
+    var inside=new Uint8Array(NN);
+    var r0=(Math.random()*(R-1))|0, c0=(Math.random()*(C-1))|0;
+    inside[r0*C+c0]=1; inside[r0*C+c0+1]=1;
+    inside[(r0+1)*C+c0]=1; inside[(r0+1)*C+c0+1]=1;
+    for(t=0;t<NN*60;t++){
+      i=(Math.random()*NN)|0;
+      inside[i]^=1;
+      if(!slRegionOK(R,C,inside)) inside[i]^=1;
+    }
+    var line=new Int8Array(g.E);
+    for(r=0;r<=R;r++) for(c=0;c<C;c++) if(at(inside,r-1,c)!==at(inside,r,c)) line[g.H(r,c)]=1;
+    for(r=0;r<R;r++) for(c=0;c<=C;c++) if(at(inside,r,c-1)!==at(inside,r,c)) line[g.V(r,c)]=1;
+    if(slOneLoop(g,line)) return line;
+  }
+  return null;
+}
+
+/* 問題生成。輪を作る → 全マスに数字を入れる → 理詰めで解ける限り数字を削る。
+   1手ずつ刻めるようにして UI を止めない。 */
+function slBuilder(R,C,lv,floor){
+  var g=slGeom(R,C), NN=R*C, keep=Math.ceil(NN*floor);
+  var phase=0, line=null, clue=null, order=null, oi=0, left=0, tries=0;
+  return {
+    label:function(){ return '盤面を厳選中… '+tries+'局目'; },
+    step:function(ms){
+      var t0=Date.now();
+      while(Date.now()-t0<ms){
+        if(phase===0){
+          tries++;
+          line=slMakeLoop(g);
+          if(!line) continue;
+          clue=new Int8Array(NN);
+          for(var i=0;i<NN;i++){
+            var es=g.cellEdges[i], n=0;
+            for(var t=0;t<4;t++) if(line[es[t]]) n++;
+            clue[i]=n;
+          }
+          if(!slSolveLv(g,clue,1)) continue;      /* 全ヒントでも理詰めで解けないなら捨てる */
+          order=shuffle((function(){var a=[],k;for(k=0;k<NN;k++)a.push(k);return a;})());
+          oi=0; left=NN; phase=1;
+          continue;
+        }
+        if(oi>=order.length||left<=keep){
+          phase=0;
+          return {g:g, R:R, C:C, line:line, clue:clue, given:left};
+        }
+        var ci=order[oi++], old=clue[ci];
+        clue[ci]=-1;
+        if(slSolveLv(g,clue,lv)) left--; else clue[ci]=old;
+      }
+      return null;
+    }
+  };
+}
+
 function newGame(d,onDone){
   var spec=DIFF[d], best=null, bestScore=1e9, tries=0, t0=Date.now();
   var lbl=document.getElementById('genLbl');
@@ -2041,6 +2384,36 @@ function newKakuro(d,onDone){
   step();
 }
 
+/* 数リンの開局。数字を入れず辺に印を付けるので、盤面のマスは当たり判定専用。
+   盤面は (2R+1)^2 で組み、入力は板全体のタップから一番近い辺を拾う。 */
+function newSlither(d,onDone){
+  var spec=LDIFF[d], builder=slBuilder(spec.sz,spec.sz,spec.lv,spec.floor);
+  var lbl=document.getElementById('genLbl');
+  function step(){
+    var r=withRng(function(){ return builder.step(70); });
+    if(!r){ if(lbl) lbl.textContent=builder.label(); setTimeout(step,0); return; }
+    var N=2*r.R+1, NN=N*N, i;
+    buildBoard(N,false,0,'l');
+    var block=new Array(NN);
+    for(i=0;i<NN;i++) block[i]=true;      /* マスは選ばない。タップは板全体で拾う */
+    S={game:'l', n:N, R:r.R, C:r.C, dmax:0, diff:d,
+       sol:Array.prototype.slice.call(r.line),
+       clue:Array.prototype.slice.call(r.clue),
+       edge:new Array(r.g.E).fill(0),
+       block:block, given:new Array(NN).fill(false),
+       board:new Array(NN).fill(0), notes:new Array(NN).fill(0),
+       undo:[], miss:0, done:false};
+    sel=-1; memo=false; slMode=1;
+    save(); renderCages(); renderAll(); syncBar();
+    if(onDone) onDone();
+    if(!META.sawSl){                      /* 初回だけ遊びかたを開く */
+      META.sawSl=1; metaSave();
+      setTimeout(openRules,260);
+    }
+  }
+  step();
+}
+
 /* 賢くなるパズルの開局。盤面サイズが変わるので DOM ごと組み直す。 */
 function newKenKen(d,onDone){
   var spec=PDIFF[d], builder=kkBuilder(spec.sz,spec.maxS,spec.mul);
@@ -2068,7 +2441,7 @@ function metaLoad(){
     var o=JSON.parse(localStorage.getItem(META_KEY));
     if(o&&typeof o==='object'){
       META.streak=o.streak||0; META.best=o.best||0; META.daily=o.daily||null;
-      META.sawRule=o.sawRule||0; META.sawBld=o.sawBld||0;
+      META.sawRule=o.sawRule||0; META.sawBld=o.sawBld||0; META.sawSl=o.sawSl||0;
     }
   }catch(e){}
 }
@@ -2104,7 +2477,7 @@ var DAILY_POOL=[
   {g:'n',d:2},{g:'k',d:1},{g:'p',d:1},{g:'q',d:1},{g:'s',d:1},
   {g:'n',d:3},{g:'k',d:2},{g:'p',d:2},{g:'q',d:2},{g:'s',d:2},
   {g:'n',d:4},{g:'k',d:0},{g:'p',d:3},{g:'q',d:0},{g:'s',d:3},
-  {g:'y',d:1},{g:'y',d:2}
+  {g:'y',d:1},{g:'y',d:2},{g:'l',d:1},{g:'l',d:2}
 ];
 function dailyPick(){ return DAILY_POOL[hashStr('pick|'+todayKey())%DAILY_POOL.length]; }
 
@@ -2116,8 +2489,10 @@ function load(){
       var n=o.n||9;
       if(o.board.length!==n*n) return false;        /* 壊れたセーブは捨てる */
       S=o; S.undo=S.undo||[]; S.game=S.game||'n'; S.n=n;   /* 旧セーブは9×9の数独 */
-      buildBoard(n, S.game!=='p'&&S.game!=='q'&&S.game!=='s'&&S.game!=='y',
-                 S.game==='s'?0:(S.dmax||n));
+      if(S.game==='l'&&(!Array.isArray(S.edge)||!Array.isArray(S.sol))) return false;
+      buildBoard(n, S.game!=='p'&&S.game!=='q'&&S.game!=='s'&&S.game!=='y'&&S.game!=='l',
+                 (S.game==='s'||S.game==='l')?0:(S.dmax||n),
+                 S.game==='l'?'l':'');
       return true;
     }
   }catch(e){}
@@ -2221,6 +2596,11 @@ function conflicts(){
 function badCount(b){return Object.keys(b).length;}
 function isComplete(){
   var NN=(S.n||9)*(S.n||9), i;
+  if(S.game==='l'){                          /* 数リン：数字が全部合い、輪がひとつ */
+    var g=slGeom(S.R,S.C), st=new Int8Array(g.E), e;
+    for(e=0;e<g.E;e++) st[e]=(S.edge[e]===1)?1:0;
+    return slValid(g,st,S.clue);
+  }
   if(S.game==='s'){                          /* 宝探し：遊ぶマスが全部確定したら完成 */
     for(i=0;i<NN;i++) if(scPlayable(i)&&!S.view[i]) return false;
     return true;
@@ -2307,6 +2687,7 @@ function erase(){
 function undo(){
   if(!S||S.done||!S.undo.length) return;
   var u=S.undo.pop();
+  if(S.game==='l'){ S.edge[u.e]=u.v; S.miss=u.miss; renderAll(); save(); return; }
   S.board[u.i]=u.v; S.notes[u.i]=u.n; S.miss=u.miss; sel=u.i;
   renderAll(); save();
 }
@@ -2377,12 +2758,14 @@ function mkSvg(tag,attrs){
 }
 /* 盤面と数字パッドを組み直す。同じ構成なら何もしない。 */
 /* pad=数字パッドのボタン数。カックロは盤面が11×11でも数字は1〜9なので分離する。 */
-var PAD_N=0;
-function buildBoard(n,blocks,pad){
+var PAD_N=0, PAD_KIND='';
+function buildBoard(n,blocks,pad,kind){
   /* pad=0 は「数字パッドを出さない」という意味なので、|| で潰さないこと */
   pad=(pad===undefined||pad===null)?n:pad;
-  if(BOARD_N===n&&BOARD_BLOCKS===blocks&&PAD_N===pad) return;
-  BOARD_N=n; BOARD_BLOCKS=blocks; PAD_N=pad;
+  kind=kind||'';
+  if(BOARD_N===n&&BOARD_BLOCKS===blocks&&PAD_N===pad&&PAD_KIND===kind) return;
+  BOARD_N=n; BOARD_BLOCKS=blocks; PAD_N=pad; PAD_KIND=kind;
+  boardEl.classList.toggle('slmode', kind==='l');
   boardEl.innerHTML=''; padEl.innerHTML='';
   boardEl.style.setProperty('--n',n);
   boardEl.style.setProperty('--nc',n<=4?2:3);   /* メモの桁組み */
@@ -2429,6 +2812,22 @@ function buildBoard(n,blocks,pad){
   /* セルの“後ろ”に足す。children[0..n*n-1] はセルのままなので添字がずれない */
   cageSvg=mkSvg('svg',{id:'cages',viewBox:'0 0 '+(n*10)+' '+(n*10)});
   boardEl.appendChild(cageSvg);
+  padEl.classList.toggle('two', pad===0);
+  if(pad===0&&kind==='l'){
+    /* 数リンも数字を入れない。タップしたときに付ける印を切り替える */
+    padEl.style.setProperty('--pn',2);
+    [[1,'線を引く','<span class="sw"></span>'],
+     [2,'×を付ける','<span class="sx">&#10005;</span>']].forEach(function(m){
+      var mb=document.createElement('button');
+      mb.className='num slmode'; mb.dataset.slm=m[0];
+      mb.innerHTML=m[2]+'<span>'+m[1]+'</span>';
+      (function(v){
+        mb.addEventListener('pointerdown',function(e){ e.preventDefault(); slMode=v; renderAll(); });
+      })(m[0]);
+      padEl.appendChild(mb);
+    });
+    return;
+  }
   if(pad===0){
     /* 宝探しは数字を入れないので、パッドの代わりにモード切替を置く */
     padEl.style.setProperty('--pn',2);
@@ -2455,11 +2854,122 @@ function buildBoard(n,blocks,pad){
 }
 buildBoard(9,true,9);
 
+/* ===== 数リンの描画と入力 =====
+   盤面は (2R+1)^2 のマスで組んであり、偶数行×偶数列が点、奇数×奇数が数字のマス。
+   SVG の座標では 1マス=10 なので、点の間隔は 20 になる。 */
+var slMode=1;                    /* タップで付ける印。1=線 / 2=× */
+function slEdgePos(g,e){
+  var C=g.C, r, c;
+  if(e<g.EH){                    /* 横辺 */
+    r=(e/C)|0; c=e%C;
+    return {x1:c*20+5, y1:r*20+5, x2:c*20+25, y2:r*20+5, mx:c*20+15, my:r*20+5};
+  }
+  var k=e-g.EH, W=C+1;           /* 縦辺 */
+  r=(k/W)|0; c=k%W;
+  return {x1:c*20+5, y1:r*20+5, x2:c*20+5, y2:r*20+25, mx:c*20+5, my:r*20+15};
+}
+/* 辺・×・点・数字をまとめて描き直す */
+function slDraw(){
+  var g=slGeom(S.R,S.C), R=S.R, C=S.C, e, r, c, i, t;
+  while(cageSvg.firstChild) cageSvg.removeChild(cageSvg.firstChild);
+  for(i=0;i<R*C;i++){
+    var k=S.clue[i];
+    if(k<0) continue;
+    r=(i/C)|0; c=i%C;
+    var es=g.cellEdges[i], ln=0;
+    for(t=0;t<4;t++) if(S.edge[es[t]]===1) ln++;
+    /* 本数が合ったマスは沈めて、残りを探しやすくする */
+    var tx=mkSvg('text',{x:c*20+15, y:r*20+15,
+                         'class':'slnum'+(ln===k?' ok':(ln>k?' over':''))});
+    tx.textContent=k;
+    cageSvg.appendChild(tx);
+  }
+  for(e=0;e<g.E;e++){
+    var v=S.edge[e];
+    if(!v) continue;
+    var q=slEdgePos(g,e);
+    /* 答えと照合して、違う印はその場で赤くする */
+    var bad=S.sol?((v===1)!==(S.sol[e]===1)):false;
+    if(v===1){
+      cageSvg.appendChild(mkSvg('line',
+        {x1:q.x1,y1:q.y1,x2:q.x2,y2:q.y2,'class':'sl'+(bad?' bad':'')}));
+    }else{
+      var d=1.7;                  /* 数字より一回り小さくして、ヒントと見分けやすくする */
+      cageSvg.appendChild(mkSvg('line',
+        {x1:q.mx-d,y1:q.my-d,x2:q.mx+d,y2:q.my+d,'class':'slx'+(bad?' bad':'')}));
+      cageSvg.appendChild(mkSvg('line',
+        {x1:q.mx-d,y1:q.my+d,x2:q.mx+d,y2:q.my-d,'class':'slx'+(bad?' bad':'')}));
+    }
+  }
+  /* 点は最後に描いて、角で交わる線の継ぎ目を隠す */
+  for(r=0;r<=R;r++) for(c=0;c<=C;c++)
+    cageSvg.appendChild(mkSvg('circle',{cx:c*20+5, cy:r*20+5, r:0.85, 'class':'sldot'}));
+}
+/* 1本ぶんの操作。同じ印をもう一度なら消す。 */
+function slAct(e,mark){
+  if(!S||S.done||S.game!=='l'||e<0) return;
+  var cur=S.edge[e];
+  S.undo.push({e:e, v:cur, miss:S.miss});
+  if(S.undo.length>400) S.undo.shift();
+  if(cur===mark) S.edge[e]=0;
+  else{
+    S.edge[e]=mark;
+    if((mark===1)!==(S.sol[e]===1)) S.miss++;
+  }
+  renderAll(); save();
+  if(isComplete()) win();
+}
+/* 指で線の上を正確に突くのは無理なので、タップ位置から一番近い辺を選ぶ。
+   長押しすると、モードを切り替えずに逆の印を付けられる（宝探しと同じ操作感）。 */
+(function(){
+  var lp=null, fired=false, startE=-1;
+  function pick(ev){
+    if(!S||S.game!=='l') return -1;
+    var g=slGeom(S.R,S.C), rc=boardEl.getBoundingClientRect();
+    if(!rc.width) return -1;
+    var u=(S.n*10)/rc.width;
+    var x=(ev.clientX-rc.left)*u, y=(ev.clientY-rc.top)*u;
+    var best=-1, bd=1e9, e, q, d;
+    for(e=0;e<g.E;e++){
+      q=slEdgePos(g,e);
+      if(q.y1===q.y2) d=Math.sqrt(Math.pow(Math.max(q.x1-x,0,x-q.x2),2)+Math.pow(y-q.y1,2));
+      else            d=Math.sqrt(Math.pow(x-q.x1,2)+Math.pow(Math.max(q.y1-y,0,y-q.y2),2));
+      if(d<bd){ bd=d; best=e; }
+    }
+    return bd<=11?best:-1;       /* 盤面の外や遠すぎるタップは拾わない */
+  }
+  function cancel(){ if(lp){ clearTimeout(lp); lp=null; } }
+  boardEl.addEventListener('pointerdown',function(ev){
+    if(!S||S.game!=='l'||S.done) return;
+    startE=pick(ev);
+    if(startE<0) return;
+    ev.preventDefault();
+    fired=false;
+    lp=setTimeout(function(){
+      fired=true; lp=null;
+      slAct(startE, slMode===1?2:1);
+    },450);
+  });
+  boardEl.addEventListener('pointerup',function(ev){
+    if(!S||S.game!=='l'||S.done) return;
+    cancel();
+    if(fired){ fired=false; startE=-1; return; }
+    if(startE<0) return;
+    ev.preventDefault();
+    slAct(startE, slMode);
+    startE=-1;
+  });
+  boardEl.addEventListener('pointercancel',cancel);
+  boardEl.addEventListener('pointerleave',cancel);
+  boardEl.addEventListener('contextmenu',function(e){ e.preventDefault(); });
+})();
+
 /* ケージの外周だけを点線で描く。隣が同じケージなら線を角まで伸ばして繋げる。 */
 var CAGE_LABEL={};
 function renderCages(){
   CAGE_LABEL={}; KAK_PEERS=null;
   while(cageSvg.firstChild) cageSvg.removeChild(cageSvg.firstChild);
+  if(S&&S.game==='l'){ boardEl.classList.remove('haslabel'); slDraw(); return; }
   if(S&&S.game==='q'){ boardEl.classList.remove('haslabel'); renderKakuro(); return; }
   boardEl.classList.toggle('haslabel', !!(S&&S.cages&&S.cages.length));
   if(!S||!S.cages||!S.cages.length) return;
@@ -2570,6 +3080,29 @@ function renderSquarecells(){
   document.getElementById('tools').classList.add('sconly');
 }
 
+/* 数リンの描画。盤面は SVG がすべてなので、マスには何も入れない。 */
+function renderSlither(){
+  var i, drawn=0, need=0;
+  slDraw();
+  for(i=0;i<S.edge.length;i++){
+    if(S.edge[i]===1) drawn++;
+    if(S.sol[i]) need++;
+  }
+  for(i=0;i<padEl.children.length;i++){
+    var mb=padEl.children[i];
+    mb.classList.toggle('on', +mb.dataset.slm===slMode);
+  }
+  document.getElementById('diffLbl').textContent=
+    '数リン・'+curDiffList()[S.diff].n+' '+drawn+'/'+need;
+  document.getElementById('missLbl').textContent=S.miss;
+  /* 数リンはメモを使わないので、宝探しと同じくルールボタンに置き換える */
+  var mb2=document.getElementById('memoBtn');
+  mb2.classList.remove('on');
+  mb2.firstChild.nodeValue='ルール';
+  mb2.querySelector('.tag').textContent='遊びかた';
+  document.getElementById('tools').classList.remove('sconly');
+}
+
 /* ビルディングの描画。外周4辺がヒント、内側が遊ぶマス。 */
 function renderSkyscraper(){
   var N=S.n, m=S.inner, NN=N*N, cells=boardEl.children, i, el, r, c, v, cls;
@@ -2623,8 +3156,10 @@ function renderAll(){
   var hb=document.getElementById('helpBtn');
   if(hb) hb.style.display=(S.game==='y')?'':'none';
   var gb=document.getElementById('giveBtn');
-  if(gb) gb.style.display=(S.game==='y')?'':'none';
+  if(gb) gb.style.display=(S.game==='y'||S.game==='l')?'':'none';
   document.getElementById('tools').classList.toggle('ybld', S.game==='y');
+  document.getElementById('tools').classList.toggle('slonly', S.game==='l');
+  if(S.game==='l'){ renderSlither(); return; }
   if(S.game==='s'){ renderSquarecells(); return; }
   if(S.game==='y'){ renderSkyscraper(); return; }
   var bad=conflicts();
@@ -3205,14 +3740,16 @@ document.addEventListener('visibilitychange',function(){ if(document.hidden) sav
 
 /* ===== UI ===== */
 function openRules(){
-  var bld=(S&&S.game==='y');
-  document.getElementById('ruleTitle').textContent=bld?'ビルディングパズルの遊びかた':'宝探しの遊びかた';
-  document.getElementById('ruleSky').style.display=bld?'none':'';
-  document.getElementById('ruleBld').style.display=bld?'':'none';
+  var g=S?S.game:'s';
+  var TITLE={y:'ビルディングパズルの遊びかた', l:'数リンの遊びかた', s:'宝探しの遊びかた'};
+  document.getElementById('ruleTitle').textContent=TITLE[g]||TITLE.s;
+  document.getElementById('ruleSky').style.display=(g==='y'||g==='l')?'none':'';
+  document.getElementById('ruleBld').style.display=(g==='y')?'':'none';
+  document.getElementById('ruleSlither').style.display=(g==='l')?'':'none';
   document.getElementById('ovRule').classList.add('show');
 }
 document.getElementById('memoBtn').addEventListener('click',function(){
-  if(S&&S.game==='s'){ openRules(); return; }   /* 宝探しはメモを使わないので置き換え */
+  if(S&&(S.game==='s'||S.game==='l')){ openRules(); return; }  /* メモを使わないゲームは置き換え */
   memo=!memo; renderAll();
 });
 /* ビルはメモを使うので、ルールは上部バーの「?」から開く */
@@ -3227,7 +3764,9 @@ document.getElementById('undoBtn').addEventListener('click',undo);
 function restartPuzzle(){
   if(!S) return;
   var NN=S.n*S.n, i;
-  if(S.game==='s'){
+  if(S.game==='l'){
+    for(i=0;i<S.edge.length;i++) S.edge[i]=0;
+  }else if(S.game==='s'){
     for(i=0;i<NN;i++) S.view[i]=0;
     S.lastMiss=-1;
   }else{
@@ -3248,6 +3787,10 @@ function restartPuzzle(){
 function hasProgress(){
   if(!S) return false;
   var NN=S.n*S.n;
+  if(S.game==='l'){
+    for(var z=0;z<S.edge.length;z++) if(S.edge[z]) return true;
+    return S.miss>0;
+  }
   if(S.game==='s'){
     for(var q=0;q<NN;q++) if(S.view[q]) return true;
     return S.miss>0;
@@ -3261,7 +3804,15 @@ function hasProgress(){
 /* ギブアップ。答えを盤面に入れて立体表示で見せる。
    クリアではないので演出は出さず、連戦なら記録は途切れる。 */
 function giveUp(){
-  if(!S||S.game!=='y'||S.done) return;
+  if(!S||S.done) return;
+  if(S.game==='l'){                       /* 数リン：答えの輪をそのまま引く */
+    for(var e=0;e<S.edge.length;e++) S.edge[e]=S.sol[e]?1:0;
+    S.done=true; sel=-1;
+    if(MODE==='streak'){ META.streak=0; metaSave(); }
+    save(); renderAll(); syncBar();
+    return;
+  }
+  if(S.game!=='y') return;
   var NN=S.n*S.n, i;
   for(i=0;i<NN;i++){ if(!S.block[i]) S.board[i]=S.sol[i]; S.notes[i]=0; }
   S.done=true; sel=-1;
@@ -3270,7 +3821,7 @@ function giveUp(){
   showCity('答え','ヒントの数字は、その向きから見えるビルの本数です');
 }
 document.getElementById('giveBtn').addEventListener('click',function(){
-  if(!S||S.game!=='y'||S.done) return;
+  if(!S||(S.game!=='y'&&S.game!=='l')||S.done) return;
   document.getElementById('ovGive').classList.add('show');
 });
 document.getElementById('giveYes').addEventListener('click',function(){
@@ -3369,7 +3920,7 @@ document.getElementById('againBtn').addEventListener('click',function(){
 /* ===== モードの操作 ===== */
 function gameLabel(){
   return S.game==='k'?'キラー・':S.game==='p'?'賢くなる・':S.game==='q'?'カックロ・'
-       :S.game==='s'?'宝探し・':S.game==='y'?'ビル・':'数独・';
+       :S.game==='s'?'宝探し・':S.game==='y'?'ビル・':S.game==='l'?'数リン・':'数独・';
 }
 function syncBar(){
   var sl=document.getElementById('streakLbl');
@@ -3392,6 +3943,7 @@ function beginGame(g,d,onDone){
     else if(g==='q') newKakuro(d,done);
     else if(g==='s') newSquarecells(d,done);
     else if(g==='y') newSkyscraper(d,done);
+    else if(g==='l') newSlither(d,done);
     else newGame(d,done);
   },30);
 }
@@ -3401,7 +3953,8 @@ function setMode(m){
 }
 /* 連戦：ゲーム種別と難易度を巡回させ、連勝が伸びるほど難しくする */
 var STREAK_POOL=[['n',1],['k',0],['p',1],['q',0],['s',0],['n',2],['k',1],['p',2],['q',1],['s',1],
-                 ['n',3],['k',2],['p',3],['q',2],['s',2],['n',4],['k',3],['q',3],['s',3],['y',2],['y',3]];
+                 ['n',3],['k',2],['p',3],['q',2],['s',2],['l',1],['n',4],['k',3],['q',3],['s',3],
+                 ['y',2],['l',2],['y',3],['l',3]];
 function startStreakGame(){
   var idx=Math.min(META.streak,STREAK_POOL.length-1);
   var pick=STREAK_POOL[idx];
@@ -3428,14 +3981,15 @@ var GAME_DESC={
   p:'3×3ブロックは無く、各行・各列に1〜nを1回ずつ。枠の数字は「12×」なら中身をかけて12。枠の中は同じ数字が入ってもかまいません。答えと違う数字はその場で赤くなります。',
   q:'黒マスの数字が、その右または下に続く白マスの合計。ひとつながりの白マスに同じ数字は入りません（1〜9）。答えと違う数字はその場で赤くなります。',
   s:'盤面に隠れた宝をすべて見つけます。運の要素はなく、数字だけで全マスが理詰めで決まります。ルールは対局中の「ルール」ボタンからいつでも読めます。',
-  y:'数字はビルの高さ。各行・各列に1〜nを1回ずつ入れます。外周の数字は、その方向から見えるビルの本数です（手前より高いビルだけが見えます）。'
+  y:'数字はビルの高さ。各行・各列に1〜nを1回ずつ入れます。外周の数字は、その方向から見えるビルの本数です（手前より高いビルだけが見えます）。',
+  l:'点と点を線でつなぎ、ひとつながりの輪をひとつだけ作ります。マスの数字は、そのマスの四辺のうち何本に線を引くかを表します。答えと違う印はその場で赤くなります。'
 };
 function buildDiffList(){
   var dl=document.getElementById('diffList');
   dl.innerHTML='';
   document.getElementById('gameDesc').textContent=GAME_DESC[pickGame];
   (pickGame==='k'?KDIFF:pickGame==='p'?PDIFF:pickGame==='q'?QDIFF:pickGame==='s'?SDIFF
-   :pickGame==='y'?YDIFF:DIFF)
+   :pickGame==='y'?YDIFF:pickGame==='l'?LDIFF:DIFF)
     .forEach(function(spec,d){
     var b=document.createElement('button');
     b.className='dbtn';
@@ -3452,6 +4006,7 @@ function buildDiffList(){
         else if(g==='q') newKakuro(d,done);
         else if(g==='s') newSquarecells(d,done);
         else if(g==='y') newSkyscraper(d,done);
+        else if(g==='l') newSlither(d,done);
         else newGame(d,done);
       },30);
     });
